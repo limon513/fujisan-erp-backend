@@ -1,0 +1,11 @@
+// Generator + datasource. Models live in one file per domain (auth.prisma, org.prisma, ...).
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
