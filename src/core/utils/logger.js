@@ -6,7 +6,12 @@ const logger = pino({
   redact: ["req.headers.authorization", "req.headers.cookie", "*.password", "*.token"],
   ...(config.isProduction
     ? {}
-    : { transport: { target: "pino-pretty", options: { translateTime: "SYS:HH:MM:ss" } } }),
+    : {
+        transport: {
+          target: "pino-pretty",
+          options: { translateTime: "SYS:HH:MM:ss", ignore: "pid,hostname,reqId,responseTime" },
+        },
+      }),
 });
 
 export default logger;

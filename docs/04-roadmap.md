@@ -13,14 +13,14 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 
 ## Phase 0 — Project setup
 
-- ◐ 0.1 Tooling: `.gitignore`, `.editorconfig`, Prettier, ESLint, `.env.example` ☑ — git repo + personal GitHub remote ☐
+- ☑ 0.1 Tooling (`.gitignore`, `.editorconfig`, Prettier, ESLint, `.env.example`), git repos on personal GitHub (limon513)
 - ☑ 0.2 Backend scaffold: Express 5, zod-validated config, `core/` (AppError, error normalizer, sendResponse,
   validate, listQuery, request context, pino logging, helmet/CORS/rate limit), `/api/v1/health`
 - ☑ 0.3 Prisma 7.10 multi-file schema + `prisma.config.js`; local Postgres (`fujisan_erp`); docker-compose (Postgres + MinIO) as an option
 - ☑ 0.4 Module registry (auto-discovery + `ENABLED_MODULES` + dependency check) + `make:module` generator
 - ☑ 0.5 Swagger/OpenAPI docs (`/api/docs`) generated from zod schemas
 - ☑ 0.6 Test setup (Vitest + Supertest)
-- ☐ 0.7 Frontend scaffold: Next.js (JS, App Router), Tailwind, shadcn/ui, TanStack Query, axios client, ERP layout shell (sidebar/topbar, mobile drawer)
+- ☑ 0.7 Frontend scaffold: Next.js (JS, App Router), Tailwind, shadcn/ui, TanStack Query, axios client, ERP layout shell (sidebar/topbar, mobile drawer)
 
 ## Phase 1 — Foundation
 

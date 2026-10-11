@@ -256,6 +256,13 @@ src/
 └── config/navigation.js          # menu definition with required permission per item
 ```
 
+- **Next.js 16 specifics**: `middleware.js` is now `proxy.js`; `params`, `searchParams`, `cookies()`
+  are async-only; `cacheComponents` is on, so any client component calling `usePathname` /
+  `useSearchParams` (sidebar, breadcrumb, tabs) must render inside `<Suspense>`, and render-time
+  randomness/time (`Math.random`, `Date.now`) is not allowed in prerendered components.
+  Version-matched docs live in `node_modules/next/dist/docs/` (see the frontend `AGENTS.md`).
+- The browser always calls `/api/v1/...` on the frontend origin; Next rewrites (dev) or Nginx (prod)
+  forward it to the backend, so the refresh-token cookie is first-party and readable by `proxy.js`.
 - `useCan("booking.create")` / `<Can perm="booking.create">` hides what the user can't do
   (backend still enforces it).
 - Navigation items declare their permission + module; items for disabled modules or missing
