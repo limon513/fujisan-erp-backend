@@ -187,14 +187,15 @@ defineRoute({ method: "patch", path: \`\${base}/:id\`, tags, summary: "Update ${
 defineRoute({ method: "delete", path: \`\${base}/:id\`, tags, summary: "Delete ${label}", request: { params: V.idParams }, errors: [401, 403, 404, 409] });
 `,
 
-  [`${name}.module.js`]: `import { ${pascal}Route } from "./${name}.route.js";
+  [`${name}.module.js`]: `import { definePermissions } from "#core/rbac/permissions.js";
+import { ${pascal}Route } from "./${name}.route.js";
 import "./${name}.docs.js";
 
 export default {
   name: "${name}",
   basePath: "${basePath}",
   router: ${pascal}Route,
-  permissions: ["${name}.view", "${name}.create", "${name}.edit", "${name}.delete"],
+  permissions: definePermissions({ module: "${name}", label: "${Label}" }),
   dependsOn: [],
 };
 `,

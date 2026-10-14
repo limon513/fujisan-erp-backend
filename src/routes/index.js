@@ -9,13 +9,13 @@ import logger from "#core/utils/logger.js";
 const modulesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../modules");
 
 /**
- * Discovers every `src/modules/<name>/<name>.module.js` manifest.
+ * Discovers every `src/modules/<name>/<name>.module.js` manifest (enabled or not).
  *
  * Manifest shape:
- *   { name, basePath, router, permissions?: string[], dependsOn?: string[], core?: boolean }
- * `core` modules (auth, health, ...) are always on; others follow ENABLED_MODULES.
+ *   { name, basePath, router, permissions?: Permission[], dependsOn?: string[], core?: boolean }
+ * (`permissions` is built with `definePermissions()` from #core/rbac/permissions.js)
  */
-export async function loadModules() {
+export async function discoverModules() {
   const entries = await readdir(modulesDir, { withFileTypes: true });
   const manifests = [];
 
@@ -26,6 +26,15 @@ export async function loadModules() {
     const { default: manifest } = await import(pathToFileURL(file).href);
     manifests.push(manifest);
   }
+
+  return manifests;
+}
+
+/**
+ * Enabled modules: `core` modules (auth, health, ...) are always on; others follow ENABLED_MODULES.
+ */
+export async function loadModules() {
+  const manifests = await discoverModules();
 
   const enabled = manifests.filter(
     (m) => m.core || config.enabledModules === "*" || config.enabledModules.includes(m.name),

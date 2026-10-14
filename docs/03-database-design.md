@@ -7,7 +7,7 @@ paint us into a corner. Phase 4–5 tables are only listed.
 
 ## 0. Global conventions
 
-- PK `id` UUID. Human codes (`code`, `bookingNo`, `receiptNo`) are separate, unique columns.
+- PK `id` UUID v7 (`@default(uuid(7)) @db.Uuid`, time-ordered so indexes stay compact). Human codes (`code`, `bookingNo`, `receiptNo`) are separate, unique columns.
 - Every table: `createdAt`, `updatedAt`; most also have `createdById`, `updatedById`.
 - Master data: `deletedAt` (soft delete) + `isActive`. Financial tables: no delete, ever.
 - Money: `Decimal(14,2)` BDT. Area: `Decimal(12,4)` stored in **sqft** (canonical), with the input
@@ -66,6 +66,13 @@ erDiagram
 | `Session`        | userId, refreshTokenHash ✱, familyId, userAgent, deviceName, ip, lastUsedAt, expiresAt, revokedAt, revokeReason                                                                                                                                                                                        |
 | `LoginHistory`   | userId?, identifier, success, failureReason, ip, userAgent, createdAt                                                                                                                                                                                                                                  |
 | `OtpToken`       | userId, purpose (PASSWORD_RESET, TWO_FACTOR_SETUP…), codeHash, expiresAt, usedAt, attempts                                                                                                                                                                                                             |
+
+> **Seeding roles & permissions** (`npm run db:seed`, idempotent): each module declares its
+> permissions with `definePermissions()` in its manifest; the seed syncs that catalog and the 21
+> system roles in `prisma/seed/core/roles.js`. Each role has a template of `[pattern, scope]` rules
+> (`"lead.*" → OWN`, `"*.view" → ALL`). Templates are applied only to **new** roles and **new**
+> permissions, so changes made in the permission matrix survive re-seeding. Super Admin also bypasses
+> permission checks in code, so a missing grant can never lock the system owner out.
 
 > One role per user keeps the matrix understandable. Team leadership is not a role — it comes
 > from `Team.leaderId`, so a Sales Executive promoted to lead a team doesn't need a new role for scope.

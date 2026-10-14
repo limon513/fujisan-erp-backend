@@ -1,0 +1,86 @@
+// Cross-cutting platform tables: audit log, files, document numbering, notifications.
+
+/// Append-only. In production the app's DB role gets INSERT/SELECT only on this table.
+model AuditLog {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  userId        String?  @db.Uuid
+  /// CREATE, UPDATE, DELETE, LOGIN, LOGOUT, APPROVE, REJECT, EXPORT, PRINT, STATUS_CHANGE, ...
+  action        String
+  entityType    String
+  entityId      String?
+  description   String?
+  oldValues     Json?
+  newValues     Json?
+  changedFields String[] @default([])
+  ip            String?
+  userAgent     String?
+  requestId     String?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([entityType, entityId])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+enum FileVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+model File {
+  id                 String                 @id @default(uuid(7)) @db.Uuid
+  /// object key in the S3-compatible bucket
+  storageKey         String                 @unique
+  originalName       String
+  mimeType           String
+  size               Int
+  checksum           String?
+  /// owner record, e.g. ("CUSTOMER", <id>)
+  entityType         String?
+  entityId           String?
+  /// NID, PHOTO, AGREEMENT, DEED, MASTER_PLAN, ...
+  category           String?
+  version            Int                    @default(1)
+  previousVersionId  String?                @unique @db.Uuid
+  verificationStatus FileVerificationStatus @default(PENDING)
+  verifiedById       String?                @db.Uuid
+  verifiedAt         DateTime?              @db.Timestamptz(3)
+  /// for expiry alerts (NOC, trade license, ...)
+  expiresOn          DateTime?              @db.Date
+  uploadedById       String?                @db.Uuid
+  createdAt          DateTime               @default(now()) @db.Timestamptz(3)
+  deletedAt          DateTime?              @db.Timestamptz(3)
+
+  previousVersion File? @relation("FileVersions", fields: [previousVersionId], references: [id], onDelete: SetNull)
+  nextVersion     File? @relation("FileVersions")
+
+  @@index([entityType, entityId])
+}
+
+/// Gap-free document numbers (BK-2026-000123). Incremented with UPDATE ... RETURNING in a transaction.
+model Sequence {
+  /// e.g. "BOOKING:2026"
+  key       String   @id
+  prefix    String
+  nextValue Int      @default(1)
+  padding   Int      @default(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model Notification {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @db.Uuid
+  type      String
+  title     String
+  body      String?
+  link      String?
+  data      Json?
+  readAt    DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}

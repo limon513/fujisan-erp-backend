@@ -1,0 +1,167 @@
+// Authentication, sessions and role-based access control with data scope.
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  LOCKED
+}
+
+/// How much data a granted permission covers.
+enum DataScope {
+  OWN
+  TEAM
+  DEPARTMENT
+  BRANCH
+  ALL
+}
+
+enum OtpPurpose {
+  PASSWORD_RESET
+  TWO_FACTOR_SETUP
+  LOGIN_2FA
+}
+
+model User {
+  id                   String     @id @default(uuid(7)) @db.Uuid
+  /// stored lowercase
+  username             String     @unique
+  /// stored lowercase
+  email                String?    @unique
+  /// normalized 8801XXXXXXXXX
+  mobile               String?    @unique
+  passwordHash         String
+  /// null for Super Admin / service accounts that aren't employees
+  employeeId           String?    @unique @db.Uuid
+  roleId               String     @db.Uuid
+  status               UserStatus @default(ACTIVE)
+  mustChangePassword   Boolean    @default(false)
+  passwordChangedAt    DateTime?  @db.Timestamptz(3)
+  failedLoginCount     Int        @default(0)
+  lockedUntil          DateTime?  @db.Timestamptz(3)
+  twoFactorEnabled     Boolean    @default(false)
+  /// encrypted TOTP secret
+  twoFactorSecret      String?
+  /// hashed one-time backup codes
+  twoFactorBackupCodes String[]   @default([])
+  lastLoginAt          DateTime?  @db.Timestamptz(3)
+  createdAt            DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime   @updatedAt @db.Timestamptz(3)
+  createdById          String?    @db.Uuid
+  updatedById          String?    @db.Uuid
+  deletedAt            DateTime?  @db.Timestamptz(3)
+
+  employee      Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  role          Role           @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  sessions      Session[]
+  loginHistory  LoginHistory[]
+  otpTokens     OtpToken[]
+  notifications Notification[]
+
+  @@index([roleId])
+}
+
+model Role {
+  id                 String   @id @default(uuid(7)) @db.Uuid
+  name               String   @unique
+  slug               String   @unique
+  description        String?
+  /// Seniority: users can only manage roles/users below their own level
+  level              Int      @default(0)
+  /// Seeded roles can be edited but not deleted
+  isSystem           Boolean  @default(false)
+  require2FA         Boolean  @default(false)
+  /// Bumped on every permission change; carried in the JWT to refresh cached permissions
+  permissionsVersion Int      @default(1)
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+  createdById        String?  @db.Uuid
+  updatedById        String?  @db.Uuid
+
+  users       User[]
+  permissions RolePermission[]
+}
+
+/// Permission catalog. Synced from module manifests by the seed — not edited by users.
+model Permission {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  /// "<resource>.<action>", e.g. "booking.approve"
+  key           String   @unique
+  module        String
+  resource      String
+  action        String
+  label         String
+  /// false for permissions where data scope makes no sense (e.g. "setting.edit")
+  supportsScope Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  roles RolePermission[]
+
+  @@index([module])
+}
+
+model RolePermission {
+  roleId       String    @db.Uuid
+  permissionId String    @db.Uuid
+  scope        DataScope @default(ALL)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@index([permissionId])
+}
+
+/// One row per logged-in device. Refresh tokens rotate; reuse of an old token revokes the family.
+model Session {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  userId           String    @db.Uuid
+  refreshTokenHash String    @unique
+  familyId         String    @db.Uuid
+  userAgent        String?
+  deviceName       String?
+  ip               String?
+  lastUsedAt       DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt        DateTime  @db.Timestamptz(3)
+  revokedAt        DateTime? @db.Timestamptz(3)
+  revokeReason     String?
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model LoginHistory {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  userId        String?  @db.Uuid
+  /// what was typed (username / email / mobile)
+  identifier    String
+  success       Boolean
+  failureReason String?
+  ip            String?
+  userAgent     String?
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model OtpToken {
+  id        String     @id @default(uuid(7)) @db.Uuid
+  userId    String     @db.Uuid
+  purpose   OtpPurpose
+  codeHash  String
+  attempts  Int        @default(0)
+  expiresAt DateTime   @db.Timestamptz(3)
+  usedAt    DateTime?  @db.Timestamptz(3)
+  createdAt DateTime   @default(now()) @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+}

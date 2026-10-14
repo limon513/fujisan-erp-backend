@@ -1,0 +1,186 @@
+// Organization: company profile, settings, branches, departments, designations, teams, employees.
+
+/// Single row (enforced by the unique `singleton` column).
+model Company {
+  id                   String   @id @default(uuid(7)) @db.Uuid
+  singleton            Boolean  @unique @default(true)
+  name                 String
+  legalName            String?
+  logoFileId           String?  @db.Uuid
+  address              String?
+  phone                String?
+  email                String?
+  website              String?
+  tin                  String?
+  bin                  String?
+  currency             String   @default("BDT")
+  timezone             String   @default("Asia/Dhaka")
+  /// Bangladesh fiscal year starts in July
+  fiscalYearStartMonth Int      @default(7)
+  createdAt            DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
+  updatedById          String?  @db.Uuid
+}
+
+/// Key/value settings grouped by area (security, sms, email, facebook, numbering, policy...).
+model Setting {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  group       String
+  key         String
+  value       Json
+  /// value is encrypted at rest (API keys, gateway secrets)
+  isSecret    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  updatedById String?  @db.Uuid
+
+  @@unique([group, key])
+}
+
+model Branch {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  code         String    @unique
+  name         String
+  address      String?
+  phone        String?
+  email        String?
+  isHeadOffice Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  createdById  String?   @db.Uuid
+  updatedById  String?   @db.Uuid
+  deletedAt    DateTime? @db.Timestamptz(3)
+
+  teams     Team[]
+  employees Employee[]
+}
+
+model Department {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  code        String    @unique
+  name        String
+  description String?
+  headId      String?   @db.Uuid
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  head         Employee?     @relation("DepartmentHead", fields: [headId], references: [id], onDelete: SetNull)
+  designations Designation[]
+  teams        Team[]
+  employees    Employee[]
+}
+
+model Designation {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  name         String
+  departmentId String?   @db.Uuid
+  /// Seniority for sorting and hierarchy checks (higher = more senior)
+  level        Int       @default(0)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  createdById  String?   @db.Uuid
+  updatedById  String?   @db.Uuid
+  deletedAt    DateTime? @db.Timestamptz(3)
+
+  department Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  employees  Employee[]
+
+  @@unique([departmentId, name])
+}
+
+model Team {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  name         String
+  branchId     String    @db.Uuid
+  departmentId String    @db.Uuid
+  leaderId     String?   @db.Uuid
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  createdById  String?   @db.Uuid
+  updatedById  String?   @db.Uuid
+  deletedAt    DateTime? @db.Timestamptz(3)
+
+  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  leader     Employee?  @relation("TeamLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  members    Employee[] @relation("TeamMembers")
+
+  @@unique([branchId, departmentId, name])
+  @@index([leaderId])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum EmploymentType {
+  PERMANENT
+  PROBATION
+  CONTRACT
+  INTERN
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  ON_LEAVE
+  SUSPENDED
+  RESIGNED
+  TERMINATED
+}
+
+model Employee {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  employeeCode       String           @unique
+  fullName           String
+  photoFileId        String?          @db.Uuid
+  mobile             String
+  email              String?
+  gender             Gender?
+  dateOfBirth        DateTime?        @db.Date
+  nidNumber          String?
+  bloodGroup         String?
+  presentAddress     String?
+  permanentAddress   String?
+  /// { name, relation, mobile }
+  emergencyContact   Json?
+  branchId           String           @db.Uuid
+  departmentId       String           @db.Uuid
+  designationId      String           @db.Uuid
+  teamId             String?          @db.Uuid
+  reportingManagerId String?          @db.Uuid
+  joiningDate        DateTime         @db.Date
+  employmentType     EmploymentType   @default(PERMANENT)
+  employmentStatus   EmploymentStatus @default(ACTIVE)
+  exitDate           DateTime?        @db.Date
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @db.Timestamptz(3)
+  createdById        String?          @db.Uuid
+  updatedById        String?          @db.Uuid
+  deletedAt          DateTime?        @db.Timestamptz(3)
+
+  branch           Branch      @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  department       Department  @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  designation      Designation @relation(fields: [designationId], references: [id], onDelete: Restrict)
+  team             Team?       @relation("TeamMembers", fields: [teamId], references: [id], onDelete: SetNull)
+  reportingManager Employee?   @relation("ReportingLine", fields: [reportingManagerId], references: [id], onDelete: SetNull)
+  directReports    Employee[]  @relation("ReportingLine")
+
+  user        User?
+  ledTeams    Team[]       @relation("TeamLeader")
+  headedDepts Department[] @relation("DepartmentHead")
+
+  @@index([branchId])
+  @@index([departmentId])
+  @@index([teamId])
+  @@index([reportingManagerId])
+  @@index([mobile])
+}
