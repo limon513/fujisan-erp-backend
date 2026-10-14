@@ -205,7 +205,9 @@ await mkdir(dir, { recursive: true });
 for (const [file, content] of Object.entries(files)) {
   await writeFile(path.join(dir, file), content);
 }
-execFileSync(path.join(root, "node_modules", ".bin", "prettier"), ["--write", dir], { stdio: "ignore" });
+execFileSync(path.join(root, "node_modules", ".bin", "prettier"), ["--write", dir], {
+  stdio: "ignore",
+});
 
 console.log(`Created src/modules/${name}/ (${Object.keys(files).length} files)`);
 console.log(`  base path:    /api/v1${basePath}`);
