@@ -89,12 +89,6 @@ const create = async (actor, { copyFromRoleId, ...data }) => {
     return created;
   });
 
-  await recordAudit({
-    action: "CREATE",
-    entityType: "Role",
-    entityId: role.id,
-    newValues: { ...data, copiedFrom: copyFromRoleId ?? null },
-  });
   return getById(role.id);
 };
 
@@ -109,32 +103,9 @@ const update = async (actor, id, data) => {
 
   if (data.name && data.name !== role.name) await assertNameAvailable(data.name, id);
 
-  const updated = await prisma.role.update({
-    where: { id },
-    // slug stays stable on rename: seed templates and code refer to roles by slug
-    data: { ...data, updatedById: actor.userId },
-    select: roleSelect,
-  });
-
-  const before = {
-    name: role.name,
-    description: role.description,
-    level: role.level,
-    require2FA: role.require2FA,
-  };
-  const after = {
-    name: updated.name,
-    description: updated.description,
-    level: updated.level,
-    require2FA: updated.require2FA,
-  };
-  await recordAudit({
-    action: "UPDATE",
-    entityType: "Role",
-    entityId: id,
-    oldValues: before,
-    newValues: after,
-  });
+  // slug stays stable on rename: seed templates and code refer to roles by slug.
+  // (The audit extension records the change.)
+  await prisma.role.update({ where: { id }, data: { ...data, updatedById: actor.userId } });
   return getById(id);
 };
 
@@ -148,12 +119,6 @@ const remove = async (actor, id) => {
     );
   }
   await prisma.role.delete({ where: { id } });
-  await recordAudit({
-    action: "DELETE",
-    entityType: "Role",
-    entityId: id,
-    oldValues: { name: role.name, level: role.level },
-  });
 };
 
 /**
