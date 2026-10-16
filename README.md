@@ -25,15 +25,16 @@ npm run dev                  # http://localhost:4000
 
 ## Scripts
 
-| Script                                | Purpose                                 |
-| ------------------------------------- | --------------------------------------- |
-| `npm run dev`                         | Start with file watching                |
-| `npm test`                            | Run tests (Vitest + Supertest)          |
-| `npm run lint` / `npm run format`     | ESLint / Prettier                       |
-| `npm run make:module -- <kebab-name>` | Scaffold a CRUD module (7 files)        |
-| `npm run db:migrate`                  | Create/apply a migration in development |
-| `npm run db:deploy`                   | Apply migrations in staging/production  |
-| `npm run db:studio`                   | Browse data                             |
+| Script                                | Purpose                                         |
+| ------------------------------------- | ----------------------------------------------- |
+| `npm run dev`                         | Start with file watching                        |
+| `npm test`                            | Run tests (Vitest + Supertest)                  |
+| `npm run lint` / `npm run format`     | ESLint / Prettier                               |
+| `npm run make:module -- <kebab-name>` | Scaffold a CRUD module (7 files)                |
+| `npm run db:migrate`                  | Create/apply a migration in development         |
+| `npm run db:new-migration -- <name>`  | Same, without interactive prompts (CI / agents) |
+| `npm run db:deploy`                   | Apply migrations in staging/production          |
+| `npm run db:studio`                   | Browse data                                     |
 
 ## Module layout
 

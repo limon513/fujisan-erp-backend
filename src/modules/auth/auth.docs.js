@@ -30,12 +30,10 @@ const Me = z
         team: ref.nullable(),
       })
       .nullable(),
-    permissions: z
-      .record(z.string(), DataScope)
-      .meta({
-        description: "Granted permission keys with their data scope",
-        example: { "lead.view": "OWN" },
-      }),
+    permissions: z.record(z.string(), DataScope).meta({
+      description: "Granted permission keys with their data scope",
+      example: { "lead.view": "OWN" },
+    }),
   })
   .meta({ id: "CurrentUser" });
 
