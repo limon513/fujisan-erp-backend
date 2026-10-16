@@ -20,8 +20,8 @@ export default class AppError extends Error {
     return new AppError(StatusCodes.UNAUTHORIZED, message);
   }
 
-  static forbidden(message = "You do not have permission to perform this action") {
-    return new AppError(StatusCodes.FORBIDDEN, message);
+  static forbidden(message = "You do not have permission to perform this action", errors) {
+    return new AppError(StatusCodes.FORBIDDEN, message, errors);
   }
 
   static notFound(message = "Resource not found") {

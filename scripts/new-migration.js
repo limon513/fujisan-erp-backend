@@ -11,10 +11,31 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import "dotenv/config";
 
 const name = process.argv[2];
 if (!name || !/^[a-z0-9_]+$/.test(name)) {
   console.error("Usage: npm run db:new-migration -- <snake_case_name>");
+  process.exit(1);
+}
+
+// Development-only tool: never create migrations against a hosted (demo/production) database.
+const target = process.env.DIRECT_DATABASE_URL || process.env.DATABASE_URL || "";
+const host = (() => {
+  try {
+    return new URL(target).hostname;
+  } catch {
+    return "";
+  }
+})();
+if (
+  !["localhost", "127.0.0.1", "::1", ""].includes(host) &&
+  process.env.ALLOW_REMOTE_DB !== "true"
+) {
+  console.error(`Refusing to create a migration against remote database host "${host}".`);
+  console.error(
+    "Point DATABASE_URL at local Postgres, or set ALLOW_REMOTE_DB=true if you really mean it.",
+  );
   process.exit(1);
 }
 

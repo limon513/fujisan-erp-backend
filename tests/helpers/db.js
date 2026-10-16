@@ -58,3 +58,25 @@ export async function createUser({
     },
   });
 }
+
+/** Syncs the real permission catalog and system roles into the test database (like the seed). */
+export async function seedAccessControl() {
+  const [{ discoverModules }, { systemRoles }, { buildCatalog, syncAccessControl }] =
+    await Promise.all([
+      import("../../src/routes/index.js"),
+      import("../../prisma/seed/core/roles.js"),
+      import("../../prisma/seed/core/accessControl.js"),
+    ]);
+  const catalog = buildCatalog(await discoverModules());
+  await prisma.$transaction((tx) => syncAccessControl(tx, { catalog, roles: systemRoles }));
+}
+
+/** Signs in and returns an Authorization header object. */
+export async function authHeader(request, app, username, password = TEST_PASSWORD) {
+  const res = await request(app)
+    .post("/api/v1/auth/login")
+    .send({ identifier: username, password });
+  if (res.status !== 200)
+    throw new Error(`Login failed for ${username}: ${res.status} ${res.body.message}`);
+  return { authorization: `Bearer ${res.body.data.accessToken}` };
+}

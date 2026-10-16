@@ -149,17 +149,21 @@ export const ${pascal}Controller = { list, getById, create, update, remove };
 `,
 
   [`${name}.route.js`]: `import { Router } from "express";
+import authenticate from "#core/middleware/authenticate.js";
 import validate from "#core/middleware/validate.js";
+import { authorize } from "#core/rbac/authorize.js";
 import { ${pascal}Controller } from "./${name}.controller.js";
 import { ${pascal}Validation as V } from "./${name}.validation.js";
 
 const router = Router();
 
-router.get("/", validate({ query: V.list }), ${pascal}Controller.list);
-router.get("/:id", validate({ params: V.idParams }), ${pascal}Controller.getById);
-router.post("/", validate({ body: V.create }), ${pascal}Controller.create);
-router.patch("/:id", validate({ params: V.idParams, body: V.update }), ${pascal}Controller.update);
-router.delete("/:id", validate({ params: V.idParams }), ${pascal}Controller.remove);
+router.use(authenticate);
+
+router.get("/", authorize("${name}.view"), validate({ query: V.list }), ${pascal}Controller.list);
+router.get("/:id", authorize("${name}.view"), validate({ params: V.idParams }), ${pascal}Controller.getById);
+router.post("/", authorize("${name}.create"), validate({ body: V.create }), ${pascal}Controller.create);
+router.patch("/:id", authorize("${name}.edit"), validate({ params: V.idParams, body: V.update }), ${pascal}Controller.update);
+router.delete("/:id", authorize("${name}.delete"), validate({ params: V.idParams }), ${pascal}Controller.remove);
 
 export const ${pascal}Route = router;
 `,

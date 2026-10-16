@@ -27,7 +27,7 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 - ☑ 1.1 Schema: org, auth, RBAC, audit, file, sequence, settings, notification → first migration
 - ☑ 1.2 Seed: permission catalog sync, system roles (Super Admin … Viewer), Super Admin user, company row
 - ☑ 1.3 Auth API: login, refresh (rotation + reuse detection), logout, logout-all, me, change/forgot/reset password, lockout, login history, sessions list/revoke
-- ☐ 1.4 RBAC: `authorize()` middleware, scope → `where` builder, Roles CRUD + permission-matrix API, role-level guard
+- ☑ 1.4 RBAC: `authorize()` middleware, scope → `where` builder, Roles CRUD + permission-matrix API, role-level guard
 - ☐ 1.5 Request context + audit-log Prisma extension + audit log API
 - ☐ 1.6 Organization APIs: branches, departments, designations, teams, employees (+ create/disable ERP user for an employee)
 - ☐ 1.7 File service: upload to S3/MinIO, signed download URLs, versions
