@@ -32,7 +32,7 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 - ☐ 1.6 Organization APIs: branches, departments, designations, teams, employees (+ create/disable ERP user for an employee)
 - ☐ 1.7 File service: upload to S3/MinIO, signed download URLs, versions
 - ☐ 1.8 Settings API: company profile, security policy
-- ☐ 1.9 Frontend: login + 2FA screen, token refresh, protected layout, permission-driven navigation, `<Can>`, shared DataTable/Form components
+- ◐ 1.9 Frontend: login, forced password change, forgot/reset, token refresh, protected layout (proxy.js + AuthGate), permission-driven navigation, `<Can>`, FormField ☑ — shared DataTable ☐
 - ☐ 1.10 Frontend: org screens, users, roles + permission matrix UI, audit log viewer, my profile/sessions
 - ☐ 1.11 2FA (TOTP + backup codes), enforce per role
 - ☐ 1.12 Dashboard shell with role-based widget slots
