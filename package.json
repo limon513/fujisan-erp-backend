@@ -31,7 +31,8 @@
     "db:seed": "prisma db seed",
     "db:new-migration": "node scripts/new-migration.js",
     "build": "prisma generate",
-    "start:prod": "prisma migrate deploy && node prisma/seed/index.js && node src/index.js"
+    "start:prod": "prisma migrate deploy && node prisma/seed/index.js && node src/index.js",
+    "postinstall": "prisma generate"
   },
   "author": "Limon",
   "license": "UNLICENSED",
