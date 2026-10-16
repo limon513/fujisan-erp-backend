@@ -4,9 +4,12 @@ import { AuditLogValidation as V } from "./audit-log.validation.js";
 
 const tags = ["Audit Log"];
 
-const Actor = z.object({ id: z.uuid(), username: z.string(), name: z.string() }).nullable().meta({
-  description: "null = system (seed, background job)",
-});
+const Actor = z
+  .object({ id: z.uuid(), username: z.string().nullable(), name: z.string() })
+  .nullable()
+  .meta({
+    description: "null = system (seed, background job)",
+  });
 
 const AuditEntry = z
   .object({
