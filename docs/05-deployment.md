@@ -1,4 +1,10 @@
-# 05 — Deployment (Neon + Render + Vercel)
+# 05 — Demo / Staging Deployment (Neon + Render + Vercel)
+
+> **Temporary showcase environment** for demonstrating progress to clients. Production for each
+> client is a VPS with Docker Compose, Nginx and Postgres (see `02-architecture.md` §9); nothing
+> here is specific to these providers, so moving later is just a change of environment variables.
+>
+> Use demo data only — never load a client's real customers, payments or NID documents here.
 
 ```
 Browser ──► Vercel (Next.js) ──/api/* rewrite──► Render (Express API) ──► Neon (PostgreSQL)
@@ -9,13 +15,15 @@ refresh-token cookie is first-party (no cross-site cookie settings, no CORS for 
 
 ## 1. Neon (database)
 
-1. Create a project, ideally in **AWS Asia Pacific (Singapore)** — closest to Bangladesh, and put
-   Render in the same region (every query crosses the network between them).
+1. Use the existing project (AWS us-east-2). Render's `render.yaml` uses the matching region
+   (`ohio`) so queries stay fast. (For a long-lived Bangladesh deployment, Singapore is closer.)
 2. Copy two connection strings from _Connect_:
    - **Pooled** (host contains `-pooler`) → `DATABASE_URL`
    - **Direct** (no `-pooler`) → `DIRECT_DATABASE_URL` (migrations need a direct connection)
-3. Don't point your local `.env` at this database — development commands (migrations, tests,
-   seeds) must never run against production. Use local Postgres for development.
+3. Keep your local `.env` pointed at local Postgres. Development commands (new migrations,
+   experiments) would otherwise change the demo database the client is looking at. To seed or
+   inspect the demo DB from your machine, pass the URL just for that command:
+   `DATABASE_URL="<neon pooled url>" DIRECT_DATABASE_URL="<neon direct url>" npm run db:seed`
 
 ## 2. Render (backend)
 
@@ -28,11 +36,10 @@ refresh-token cookie is first-party (no cross-site cookie settings, no CORS for 
 
 Notes:
 
-- Free plan sleeps after ~15 min idle; the first request then takes ~30–60 s. Use a paid instance
-  for real users.
+- Free plan sleeps after ~15 min idle; the first request then takes ~30–60 s. Open the site a minute
+  before a client demo to wake it up.
 - `TRUST_PROXY=2` (Vercel + Render). After the first login, check _My login history_ shows your
   real public IP; if it shows a Vercel/Render address, adjust `TRUST_PROXY`.
-- Turn `API_DOCS_ENABLED` off (or protect it) before go-live.
 
 ## 3. Vercel (frontend)
 

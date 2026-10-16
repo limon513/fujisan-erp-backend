@@ -1,13 +1,14 @@
-# Render Blueprint — https://render.com/docs/blueprint-spec
+# Render Blueprint for the DEMO / STAGING environment (client showcases), not the production
+# hosting — production is one VPS deployment per client (docs/02-architecture.md §9).
+# https://render.com/docs/blueprint-spec
 # Dashboard → New → Blueprint → pick this repo. Values marked `sync: false` are asked for on creation.
 services:
   - type: web
     name: fujisan-erp-api
     runtime: node
     plan: free
-    # Keep the API in the same region as the database (Neon Singapore = aws-ap-southeast-1).
-    # If the Neon project stays in us-east-2 (Ohio), change this to "ohio".
-    region: singapore
+    # Same region as the Neon database (us-east-2 = Ohio) to keep query latency low.
+    region: ohio
     branch: main
     buildCommand: npm ci && npm run build
     # migrate → idempotent seed (syncs permissions/roles) → server
@@ -29,7 +30,7 @@ services:
       - key: CORS_ORIGINS
         sync: false # e.g. https://fujisan-erp.vercel.app
       - key: API_DOCS_ENABLED
-        value: "true" # turn off (or protect) before real users go live
+        value: "true" # handy for demos
       - key: SEED_CLIENT
         value: fujisan
       - key: SEED_ADMIN_USERNAME
