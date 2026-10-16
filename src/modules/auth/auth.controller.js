@@ -1,7 +1,7 @@
 import config from "#config/index.js";
 import AppError from "#core/errors/AppError.js";
 import sendResponse from "#core/utils/sendResponse.js";
-import { REFRESH_COOKIE, REFRESH_COOKIE_PATH } from "./auth.constant.js";
+import { REFRESH_COOKIE, REFRESH_COOKIE_PATH, SESSION_HINT_COOKIE } from "./auth.constant.js";
 import { AuthService } from "./auth.service.js";
 
 const cookieOptions = {
@@ -11,11 +11,19 @@ const cookieOptions = {
   path: REFRESH_COOKIE_PATH,
 };
 
+const hintCookieOptions = { ...cookieOptions, httpOnly: false, path: "/" };
+
+const clearAuthCookies = (res) => {
+  res.clearCookie(REFRESH_COOKIE, cookieOptions);
+  res.clearCookie(SESSION_HINT_COOKIE, hintCookieOptions);
+};
+
 const requestMeta = (req) => ({ ip: req.ip, userAgent: req.get("user-agent") ?? null });
 
 /** Sets the refresh cookie and returns the token fields safe to put in the body. */
 const withRefreshCookie = (res, { refreshToken, refreshExpiresAt, ...rest }) => {
   res.cookie(REFRESH_COOKIE, refreshToken, { ...cookieOptions, expires: refreshExpiresAt });
+  res.cookie(SESSION_HINT_COOKIE, "1", { ...hintCookieOptions, expires: refreshExpiresAt });
   return rest;
 };
 
@@ -31,20 +39,20 @@ const refresh = async (req, res) => {
     const result = await AuthService.refresh(token, requestMeta(req));
     return sendResponse(res, { message: "Token refreshed", data: withRefreshCookie(res, result) });
   } catch (error) {
-    res.clearCookie(REFRESH_COOKIE, cookieOptions);
+    clearAuthCookies(res);
     throw error;
   }
 };
 
 const logout = async (req, res) => {
   await AuthService.logout(req.cookies?.[REFRESH_COOKIE]);
-  res.clearCookie(REFRESH_COOKIE, cookieOptions);
+  clearAuthCookies(res);
   return sendResponse(res, { message: "Signed out", data: null });
 };
 
 const logoutAll = async (req, res) => {
   const data = await AuthService.logoutAll(req.actor);
-  res.clearCookie(REFRESH_COOKIE, cookieOptions);
+  clearAuthCookies(res);
   return sendResponse(res, { message: "Signed out of all devices", data });
 };
 

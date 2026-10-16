@@ -40,6 +40,9 @@ describe("login", () => {
       expect(res.body.data.refreshToken).toBeUndefined();
       expect(refreshCookie(res)).toMatch(/HttpOnly/);
       expect(refreshCookie(res)).toMatch(/Path=\/api\/v1\/auth/);
+      const hint = res.headers["set-cookie"].find((cookie) => cookie.startsWith("erp_session=1"));
+      expect(hint).toMatch(/Path=\/;/);
+      expect(hint).not.toMatch(/HttpOnly/);
     }
 
     expect(await prisma.loginHistory.count({ where: { success: true } })).toBe(3);
@@ -157,7 +160,9 @@ describe("refresh token", () => {
 
     const agent = request.agent(app);
     await login(agent);
-    expect((await agent.post("/api/v1/auth/logout")).status).toBe(200);
+    const logout = await agent.post("/api/v1/auth/logout");
+    expect(logout.status).toBe(200);
+    expect(logout.headers["set-cookie"].join(";")).toMatch(/erp_session=;/);
     expect((await agent.post("/api/v1/auth/refresh")).status).toBe(401);
   });
 });

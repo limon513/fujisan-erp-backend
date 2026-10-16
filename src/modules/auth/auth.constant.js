@@ -3,6 +3,12 @@ export const REFRESH_COOKIE = "erp_rt";
 /** Cookie is sent only to auth endpoints. */
 export const REFRESH_COOKIE_PATH = "/api/v1/auth";
 
+/**
+ * Non-secret "probably signed in" hint readable on every path, so the frontend's route guard can
+ * redirect to /login without a round trip. It grants nothing — the API still checks every request.
+ */
+export const SESSION_HINT_COOKIE = "erp_session";
+
 /** A just-rotated refresh secret is still accepted this long (parallel tabs refreshing at once). */
 export const ROTATION_GRACE_MS = 30 * 1000;
 
