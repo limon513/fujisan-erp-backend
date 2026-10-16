@@ -25,6 +25,20 @@ const envSchema = z.object({
   ENABLED_MODULES: z.string().default("*"),
   API_DOCS_ENABLED: bool,
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
+
+  // Auth
+  JWT_ACCESS_SECRET: z.string().min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
+  JWT_ACCESS_TTL_MINUTES: z.coerce.number().int().positive().default(15),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  MAX_FAILED_LOGINS: z.coerce.number().int().positive().default(5),
+  LOCKOUT_MINUTES: z.coerce.number().int().positive().default(15),
+
+  // Mail (password reset, notifications). Without SMTP_HOST mail is logged instead of sent.
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  MAIL_FROM: z.string().default("ERP <no-reply@localhost>"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -55,6 +69,20 @@ const config = Object.freeze({
           .filter(Boolean),
   apiDocsEnabled: env.API_DOCS_ENABLED,
   logLevel: env.LOG_LEVEL,
+  auth: {
+    accessSecret: env.JWT_ACCESS_SECRET,
+    accessTtlSeconds: env.JWT_ACCESS_TTL_MINUTES * 60,
+    refreshTtlMs: env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
+    maxFailedLogins: env.MAX_FAILED_LOGINS,
+    lockoutMs: env.LOCKOUT_MINUTES * 60 * 1000,
+  },
+  mail: {
+    host: env.SMTP_HOST,
+    port: env.SMTP_PORT,
+    user: env.SMTP_USER,
+    pass: env.SMTP_PASS,
+    from: env.MAIL_FROM,
+  },
 });
 
 export default config;

@@ -28,7 +28,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:format": "prisma format",
     "db:studio": "prisma studio",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:new-migration": "node scripts/new-migration.js"
   },
   "author": "Limon",
   "license": "UNLICENSED",
@@ -44,6 +45,8 @@
     "express-rate-limit": "8.7.1",
     "helmet": "8.3.0",
     "http-status-codes": "2.3.0",
+    "jsonwebtoken": "9.0.3",
+    "nodemailer": "10.1.1",
     "pg": "8.23.1",
     "pino": "10.4.0",
     "pino-http": "11.0.0",

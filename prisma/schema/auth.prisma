@@ -113,25 +113,27 @@ model RolePermission {
   @@index([permissionId])
 }
 
-/// One row per logged-in device. Refresh tokens rotate; reuse of an old token revokes the family.
+/// One row per logged-in device. The refresh token is "<session id>.<secret>"; the secret rotates
+/// on every refresh. Presenting an old secret = token theft → the session is revoked. The previous
+/// secret stays valid for a few seconds so two tabs refreshing at once don't log the user out.
 model Session {
-  id               String    @id @default(uuid(7)) @db.Uuid
-  userId           String    @db.Uuid
-  refreshTokenHash String    @unique
-  familyId         String    @db.Uuid
-  userAgent        String?
-  deviceName       String?
-  ip               String?
-  lastUsedAt       DateTime  @default(now()) @db.Timestamptz(3)
-  expiresAt        DateTime  @db.Timestamptz(3)
-  revokedAt        DateTime? @db.Timestamptz(3)
-  revokeReason     String?
-  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  id                String    @id @default(uuid(7)) @db.Uuid
+  userId            String    @db.Uuid
+  refreshTokenHash  String    @unique
+  previousTokenHash String?
+  rotatedAt         DateTime? @db.Timestamptz(3)
+  userAgent         String?
+  deviceName        String?
+  ip                String?
+  lastUsedAt        DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt         DateTime  @db.Timestamptz(3)
+  revokedAt         DateTime? @db.Timestamptz(3)
+  revokeReason      String?
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([familyId])
 }
 
 model LoginHistory {

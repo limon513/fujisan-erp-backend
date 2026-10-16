@@ -49,6 +49,7 @@ const errorDescriptions = {
   404: "Not found",
   409: "Conflict",
   422: "Business rule violated",
+  423: "Account temporarily locked",
 };
 
 const jsonContent = (schema) => ({ "application/json": { schema } });

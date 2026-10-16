@@ -1,4 +1,5 @@
 import { rateLimit } from "express-rate-limit";
+import config from "#config/index.js";
 
 const limitedResponse = (message) => ({ success: false, message, errors: [] });
 
@@ -9,6 +10,7 @@ export const apiLimiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: limitedResponse("Too many requests, please slow down"),
+  skip: () => config.isTest,
 });
 
 /** Strict limit for login / password reset / OTP routes. */
@@ -18,4 +20,5 @@ export const authLimiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: limitedResponse("Too many attempts, please try again later"),
+  skip: () => config.isTest,
 });
