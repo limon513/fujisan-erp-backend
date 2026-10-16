@@ -124,3 +124,82 @@ export function buildOpenApiDocument() {
     servers: [{ url: "/api/v1" }],
   });
 }
+
+/**
+ * Registers the standard list/get/create/update/delete endpoints of a resource.
+ *
+ * @param {object} options
+ * @param {string} options.base        e.g. "/branches"
+ * @param {string[]} options.tags
+ * @param {string} options.label       singular, e.g. "branch"
+ * @param {string} options.plural      e.g. "branches"
+ * @param {string} options.permission  permission prefix, e.g. "branch"
+ * @param {object} options.validation  { idParams, list, create, update }
+ * @param {import("zod").ZodType} options.schema  response item
+ * @param {string} [options.deleteNote]
+ */
+export function defineCrudRoutes({
+  base,
+  tags,
+  label,
+  plural,
+  permission,
+  validation: V,
+  schema,
+  deleteNote,
+}) {
+  const requires = (action) => `Requires \`${permission}.${action}\`.`;
+  defineRoute({
+    method: "get",
+    path: base,
+    tags,
+    summary: `List ${plural}`,
+    description: requires("view"),
+    request: { query: V.list },
+    response: schema,
+    paginated: true,
+  });
+  defineRoute({
+    method: "get",
+    path: `${base}/:id`,
+    tags,
+    summary: `Get a ${label}`,
+    description: requires("view"),
+    request: { params: V.idParams },
+    response: schema,
+    errors: [401, 403, 404],
+  });
+  defineRoute({
+    method: "post",
+    path: base,
+    tags,
+    summary: `Create a ${label}`,
+    description: requires("create"),
+    request: { body: V.create },
+    response: schema,
+    status: 201,
+    errors: [400, 401, 403, 409, 422],
+  });
+  defineRoute({
+    method: "patch",
+    path: `${base}/:id`,
+    tags,
+    summary: `Update a ${label}`,
+    description: requires("edit"),
+    request: { params: V.idParams, body: V.update },
+    response: schema,
+    errors: [400, 401, 403, 404, 409, 422],
+  });
+  defineRoute({
+    method: "delete",
+    path: `${base}/:id`,
+    tags,
+    summary: `Delete a ${label}`,
+    description: `${requires("delete")} ${deleteNote ?? ""}`.trim(),
+    request: { params: V.idParams },
+    errors: [401, 403, 404, 409],
+  });
+}
+
+/** `{ id, name }` reference used in responses. */
+export const RefSchema = z.object({ id: z.uuid(), name: z.string() });

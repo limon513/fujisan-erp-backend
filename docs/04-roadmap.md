@@ -29,7 +29,7 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 - ☑ 1.3 Auth API: login, refresh (rotation + reuse detection), logout, logout-all, me, change/forgot/reset password, lockout, login history, sessions list/revoke
 - ☑ 1.4 RBAC: `authorize()` middleware, scope → `where` builder, Roles CRUD + permission-matrix API, role-level guard
 - ☑ 1.5 Request context + audit-log Prisma extension + audit log API
-- ☐ 1.6 Organization APIs: branches, departments, designations, teams, employees (+ create/disable ERP user for an employee)
+- ☑ 1.6 Organization APIs: branches, departments, designations, teams, employees (+ create/disable ERP user for an employee)
 - ☐ 1.7 File service: upload to S3/MinIO, signed download URLs, versions
 - ☐ 1.8 Settings API: company profile, security policy
 - ◐ 1.9 Frontend: login, forced password change, forgot/reset, token refresh, protected layout (proxy.js + AuthGate), permission-driven navigation, `<Can>`, FormField ☑ — shared DataTable ☐

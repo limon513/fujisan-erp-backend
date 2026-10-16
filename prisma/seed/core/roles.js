@@ -272,6 +272,7 @@ export const systemRoles = [
       ["user.view", "ALL"],
       ["user.create", "ALL"],
       ["user.edit", "ALL"],
+      ["user.reset-password", "ALL"],
       ["role.view", "ALL"],
       ["report.view", "ALL"],
     ],

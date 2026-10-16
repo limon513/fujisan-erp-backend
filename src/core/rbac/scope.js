@@ -53,6 +53,35 @@ export function buildScopeWhere(actor, scope, fieldOverrides = {}) {
   }
 }
 
+/**
+ * Does a plain record (e.g. the employee being created) fall inside the actor's scope?
+ * Same rules as buildScopeWhere, evaluated in memory.
+ */
+export function isInScope(actor, scope, record, fieldOverrides = {}) {
+  if (actor.isSuperAdmin || scope === "ALL") return true;
+  const f = { ...DEFAULT_FIELDS, ...fieldOverrides };
+  const own = Boolean(actor.employeeId) && record[f.owner] === actor.employeeId;
+  switch (scope) {
+    case "OWN":
+      return own;
+    case "TEAM":
+      return own || (record[f.team] != null && actor.teamIds.includes(record[f.team]));
+    case "DEPARTMENT":
+      return Boolean(actor.departmentId) && record[f.department] === actor.departmentId;
+    case "BRANCH":
+      return Boolean(actor.branchId) && record[f.branch] === actor.branchId;
+    default:
+      return false;
+  }
+}
+
+/** Throws 403 unless the record is inside the actor's scope. */
+export function assertInScope(actor, scope, record, fieldOverrides) {
+  if (!isInScope(actor, scope, record, fieldOverrides)) {
+    throw AppError.forbidden("This record is outside your access scope");
+  }
+}
+
 /** Org fields to stamp on a new scoped record so scope filters can find it later. */
 export const ownershipFields = (actor) => ({
   ownerId: actor.employeeId,

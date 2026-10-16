@@ -31,3 +31,33 @@ export const bdMobileSchema = z
     }
     return normalized;
   });
+
+/** Optional text: trims, turns "" into null (so clearing a field in a form stores null). */
+export const optionalText = (max = 255) =>
+  z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? null : value),
+    z.string().trim().max(max).nullable().optional(),
+  );
+
+/** Optional UUID reference: "" → null. */
+export const optionalId = () =>
+  z.preprocess((value) => (value === "" ? null : value), z.uuid().nullable().optional());
+
+/** Calendar date "YYYY-MM-DD" → Date at UTC midnight (for @db.Date columns). */
+export const dateOnly = () => z.iso.date().transform((value) => new Date(`${value}T00:00:00.000Z`));
+
+export const optionalDateOnly = () =>
+  z.preprocess((value) => (value === "" ? null : value), dateOnly().nullable().optional());
+
+/** Bangladesh NID: 10, 13 or 17 digits. */
+export const nidSchema = z
+  .string()
+  .trim()
+  .regex(/^(\d{10}|\d{13}|\d{17})$/, "NID must have 10, 13 or 17 digits");
+
+/** Boolean from a query string ("true"/"false"). */
+export const queryBoolean = () =>
+  z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional();
