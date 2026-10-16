@@ -16,7 +16,8 @@ export async function createApp() {
   const app = express();
 
   app.disable("x-powered-by");
-  app.set("trust proxy", 1); // behind Nginx
+  // Number of proxies in front of the API (Vercel rewrite + Render = 2) so req.ip is the client
+  app.set("trust proxy", config.trustProxy);
 
   app.use(requestContext);
   app.use(

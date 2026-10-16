@@ -1,0 +1,40 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Dashboard → New → Blueprint → pick this repo. Values marked `sync: false` are asked for on creation.
+services:
+  - type: web
+    name: fujisan-erp-api
+    runtime: node
+    plan: free
+    # Keep the API in the same region as the database (Neon Singapore = aws-ap-southeast-1).
+    # If the Neon project stays in us-east-2 (Ohio), change this to "ohio".
+    region: singapore
+    branch: main
+    buildCommand: npm ci && npm run build
+    # migrate → idempotent seed (syncs permissions/roles) → server
+    startCommand: npm run start:prod
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_NAME
+        value: Fujisan ERP
+      - key: DATABASE_URL
+        sync: false # Neon pooled connection string (host contains "-pooler")
+      - key: DIRECT_DATABASE_URL
+        sync: false # Neon direct connection string (no "-pooler"), used by migrations
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: TRUST_PROXY
+        value: "2" # Vercel rewrite + Render proxy
+      - key: CORS_ORIGINS
+        sync: false # e.g. https://fujisan-erp.vercel.app
+      - key: API_DOCS_ENABLED
+        value: "true" # turn off (or protect) before real users go live
+      - key: SEED_CLIENT
+        value: fujisan
+      - key: SEED_ADMIN_USERNAME
+        value: superadmin
+      - key: SEED_ADMIN_PASSWORD
+        sync: false # first Super Admin password (must be changed on first login)
+      - key: MAIL_FROM
+        value: Fujisan ERP <no-reply@fujisan.example>

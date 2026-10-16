@@ -24,6 +24,7 @@ const envSchema = z.object({
   CORS_ORIGINS: csv,
   ENABLED_MODULES: z.string().default("*"),
   API_DOCS_ENABLED: bool,
+  TRUST_PROXY: z.coerce.number().int().min(0).default(1),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
 
   // Auth
@@ -69,6 +70,7 @@ const config = Object.freeze({
           .filter(Boolean),
   apiDocsEnabled: env.API_DOCS_ENABLED,
   logLevel: env.LOG_LEVEL,
+  trustProxy: env.TRUST_PROXY,
   auth: {
     accessSecret: env.JWT_ACCESS_SECRET,
     accessTtlSeconds: env.JWT_ACCESS_TTL_MINUTES * 60,
