@@ -33,7 +33,7 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 - ☐ 1.7 File service: upload to S3/MinIO, signed download URLs, versions
 - ☐ 1.8 Settings API: company profile, security policy
 - ◐ 1.9 Frontend: login, forced password change, forgot/reset, token refresh, protected layout (proxy.js + AuthGate), permission-driven navigation, `<Can>`, FormField ☑ — shared DataTable ☐
-- ◐ 1.10 Frontend: org screens (branches, departments, designations, teams, employees), user accounts (create login, reset password, unlock), audit log viewer ☑ — roles + permission matrix UI, my profile/sessions ☐
+- ◐ 1.10 Frontend: org screens, user accounts, audit log viewer, roles + permission matrix (scope per cell, escalation-aware) ☑ — my profile/sessions ☐
 - ☐ 1.11 2FA (TOTP + backup codes), enforce per role
 - ☐ 1.12 Dashboard shell with role-based widget slots
 
