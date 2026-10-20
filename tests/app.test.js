@@ -1,7 +1,7 @@
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../src/app.js";
-import prisma from "#core/db/prisma.js";
+import prisma, { assertUtcSession } from "#core/db/prisma.js";
 
 let app;
 
@@ -19,6 +19,15 @@ describe("app", () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ success: true, data: { status: "ok", database: "up" } });
     expect(res.headers["x-request-id"]).toBeDefined();
+  });
+
+  it("runs database sessions in UTC (the pg adapter depends on it)", async () => {
+    await expect(assertUtcSession()).resolves.toBeUndefined();
+    const written = await prisma.sequence.create({ data: { key: "TZ_TEST", prefix: "" } });
+    const [{ stored }] =
+      await prisma.$queryRaw`SELECT "updatedAt" AS stored FROM "Sequence" WHERE key = 'TZ_TEST'`;
+    expect(stored.toISOString()).toBe(written.updatedAt.toISOString());
+    await prisma.sequence.delete({ where: { key: "TZ_TEST" } });
   });
 
   it("returns the error envelope for unknown routes", async () => {

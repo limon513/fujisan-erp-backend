@@ -1,12 +1,13 @@
 import config from "#config/index.js";
 import logger from "#core/utils/logger.js";
-import prisma from "#core/db/prisma.js";
+import prisma, { assertUtcSession } from "#core/db/prisma.js";
 import { createApp } from "./app.js";
 import { startJobs } from "./jobs/index.js";
 
 const app = await createApp();
 
 await prisma.$connect();
+await assertUtcSession();
 const stopJobs = startJobs();
 
 const server = app.listen(config.port, () => {
