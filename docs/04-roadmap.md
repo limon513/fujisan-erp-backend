@@ -48,7 +48,7 @@ layouts, holds with day limit + auto-release, sold on registration, single owner
 - ☑ 2.4 Plots: API + screens (list / filters, detail sheet with status + price history, add / edit, change price with reason, Excel/CSV import with preview)
 - ☑ 2.5 Hold / release / block with history; auto-release job when the days run out
 - ☑ 2.6 Interactive plot map: draw plot shapes on the layout image (editor) + colour-coded viewer with plot details and actions
-- ☐ 2.7 Customers + nominees + documents, duplicate check by mobile/NID
+- ◐ 2.7 Customers (API ☑, screens ☐) + nominees + documents, duplicate check by mobile/NID
 - ☐ 2.8 Dashboard: plot inventory widgets (available / hold / booked / sold per project)
 
 ## Phase 3 — Revenue engine
