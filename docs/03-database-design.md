@@ -90,53 +90,69 @@ erDiagram
 
 ## 2. Phase 2 — Real-Estate Core
 
+Client decisions (2026-10-20): **plots only**; project land in **decimal**, plot size in **sqft**;
+**each plot has its own price** (no corner/road premiums — they adjust the price instead);
+layout plans are **images**; holds by Sales Manager and above with a **day limit and auto-release**,
+recording who asked for the hold; a plot is **SOLD on registration**; **one owner per plot**.
+
 ```mermaid
 erDiagram
   Project ||--o{ Block : has
   Project ||--o{ Road : has
-  Block ||--o{ Road : "may contain"
-  Project ||--o{ Unit : has
-  Block ||--o{ Unit : has
-  Road ||--o{ Unit : "faces"
-  Unit ||--o{ UnitStatusHistory : log
-  Unit ||--o{ UnitPriceHistory : log
-  Unit ||--o{ UnitHold : holds
+  Project ||--o{ Plot : has
+  Block ||--o{ Plot : contains
+  Road ||--o{ Plot : "faces"
+  Plot ||--o{ PlotHold : "hold history"
+  Plot ||--o{ PlotStatusHistory : log
+  Plot ||--o{ PlotPriceHistory : log
+  Customer ||--o{ PlotHold : "held for"
   Customer ||--o{ CustomerNominee : has
-  Customer ||--o{ UnitHold : "held for"
-  Project ||--o{ ProjectMember : team
 ```
 
-| Table               | Key fields                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Project`           | code ✱, name, type (PLOT, APARTMENT, MIXED), status (PLANNING, ONGOING, COMPLETED, ON_HOLD), description, address, district, upazila, latitude, longitude, totalLandArea (sqft), areaDisplayUnit (KATHA, DECIMAL, SQFT, BIGHA), launchDate, expectedHandoverDate, estimatedCost, progressPercent, branchId, projectManagerId, masterPlanFileId, mapWidth, mapHeight, policy JSON (holdHours, defaultInstallments, lateFeeRule, cancellationRule — moved to proper tables in Phase 3 if it grows)                                                    |
-| `ProjectMember`     | projectId, employeeId, role (MANAGER, SALES, ENGINEER…)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| `Block`             | projectId, code, name, sortOrder — ✱(projectId, code)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `Road`              | projectId, blockId?, code/name, widthFeet — ✱(projectId, code)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| `Unit`              | projectId, blockId?, roadId?, unitType (PLOT, APARTMENT, COMMERCIAL, PARKING), unitNumber, code (`A-102`, unique per project), building?, floor?, area (sqft), areaInput, areaInputUnit, facing (N, S, E, W, NE, NW, SE, SW), isCorner, dimensions (e.g. `40x60 ft`), ratePerUnit, rateUnit, basePrice, premiumAmount, listPrice, status (AVAILABLE, HOLD, BOOKED, SOLD, BLOCKED), statusChangedAt, currentBookingId?, mapShape JSON, mapLabel JSON {x,y}, attributes JSON (bedrooms, baths…), remarks — ✱(projectId, code), idx(projectId, status) |
-| `UnitStatusHistory` | unitId, fromStatus, toStatus, reason, refType (HOLD, BOOKING, CANCELLATION, TRANSFER, MANUAL), refId, changedById, createdAt                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| `UnitPriceHistory`  | unitId, oldListPrice, newListPrice, reason, changedById, createdAt                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `UnitHold`          | unitId, customerId?, leadId?, heldById (employee), reason, expiresAt, status (ACTIVE, RELEASED, EXPIRED, CONVERTED), releasedAt, releasedById                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `Customer`          | customerCode ✱, type (INDIVIDUAL, COMPANY), fullName, fatherName, motherName, spouseName, dateOfBirth, gender, nationality, nidNumber, passportNumber, tin, profession, organization, mobile, altMobile, email, presentAddress JSON, permanentAddress JSON, photoFileId, sourceLeadId?, ownerId (employee), teamId, branchId, status, notes — idx(mobile), idx(nidNumber)                                                                                                                                                                           |
-| `CustomerNominee`   | customerId, fullName, relation, nidNumber, mobile, sharePercent, photoFileId                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Table               | Key fields                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Project`           | code ✱, name, status (PLANNING, ONGOING, COMPLETED, ON_HOLD), description, address, district, upazila, latitude?, longitude?, landAreaDecimal (total land, decimal), launchDate?, expectedHandoverDate?, branchId, projectManagerId?, layoutFileId? (master-plan image), layoutWidth/layoutHeight (image pixels = map coordinate space), defaultHoldDays, isActive                                            |
+| `Block`             | projectId, code, name, sortOrder, isActive — ✱(projectId, code)                                                                                                                                                                                                                                                                                                                                               |
+| `Road`              | projectId, code/name, widthFeet? — ✱(projectId, code)                                                                                                                                                                                                                                                                                                                                                         |
+| `Plot`              | projectId, blockId, roadId?, plotNumber, code (`A-102`, ✱ per project), areaSqft, dimensions? (`40×60 ft`), facing? (N/S/E/W/NE/NW/SE/SW), price (BDT, set per plot), status (AVAILABLE, HOLD, BOOKED, SOLD, BLOCKED), statusChangedAt, mapShape? JSON (polygon points in layout-image pixels), mapLabel? JSON {x,y}, remarks — idx(projectId, status). Rate per sqft is computed (price ÷ area), not stored. |
+| `PlotHold`          | plotId, requestedById (employee who asked, e.g. sales executive), heldById (user who placed it — Sales Manager+), customerId?, customerName?/customerMobile? (prospect not yet a customer), reason, days, expiresAt, status (ACTIVE, RELEASED, EXPIRED, CONVERTED), releasedAt?, releasedById?, releaseReason?                                                                                                |
+| `PlotStatusHistory` | plotId, fromStatus, toStatus, reason, refType (HOLD, RELEASE, EXPIRY, BLOCK, BOOKING, REGISTRATION, CANCELLATION), refId?, changedById?, createdAt                                                                                                                                                                                                                                                            |
+| `PlotPriceHistory`  | plotId, oldPrice, newPrice, reason, changedById, createdAt                                                                                                                                                                                                                                                                                                                                                    |
+| `Customer`          | customerCode ✱, fullName, fatherName, motherName, spouseName?, dateOfBirth?, gender?, nidNumber?, passportNumber?, tin?, profession?, organization?, mobile, altMobile?, email?, presentAddress, permanentAddress, photoFileId?, sourceLeadId?, ownerId (employee), teamId, departmentId, branchId, notes — idx(mobile), idx(nidNumber)                                                                       |
+| `CustomerNominee`   | customerId, fullName, relation, nidNumber?, mobile?, sharePercent, photoFileId?                                                                                                                                                                                                                                                                                                                               |
 
-**Unit concurrency rule** (double booking/holding must be impossible):
+**Status rules**
+
+```
+AVAILABLE → HOLD      (plot.hold: Sales Manager+, with day limit; who asked is recorded)
+HOLD → AVAILABLE      (manual release, or automatic when the days run out)
+AVAILABLE/HOLD → BOOKED    (booking confirmed — Phase 3)
+BOOKED → SOLD         (registration recorded — Phase 3)
+BOOKED → AVAILABLE    (cancellation — Phase 3)
+AVAILABLE ↔ BLOCKED   (plot.block — management keeps a plot off the market)
+```
+
+**Concurrency** (a plot can never be held or booked twice):
 
 ```js
 // inside a transaction
-const { count } = await tx.unit.updateMany({
-  where: { id: unitId, status: "AVAILABLE" }, // only if still available
+const { count } = await tx.plot.updateMany({
+  where: { id: plotId, status: "AVAILABLE" }, // only if still available
   data: { status: "HOLD", statusChangedAt: new Date() },
 });
-if (count === 0) throw new AppError(409, "Unit is no longer available");
+if (count === 0) throw new AppError(409, "Plot is no longer available");
 ```
 
 plus DB guards added in migration SQL:
 
 ```sql
-CREATE UNIQUE INDEX unit_one_active_hold    ON "UnitHold"("unitId") WHERE status = 'ACTIVE';
-CREATE UNIQUE INDEX unit_one_active_booking ON "Booking"("unitId")
-  WHERE status IN ('PENDING_APPROVAL','CONFIRMED','COMPLETED');
+CREATE UNIQUE INDEX plot_one_active_hold ON "PlotHold"("plotId") WHERE status = 'ACTIVE';
+CREATE UNIQUE INDEX plot_one_active_booking ON "Booking"("plotId")
+  WHERE status IN ('PENDING_APPROVAL','CONFIRMED','REGISTERED');  -- Phase 3
 ```
+
+**Hold expiry**: a background job (every few minutes) releases ACTIVE holds whose `expiresAt` has
+passed → plot AVAILABLE, hold EXPIRED, status history written, the requester notified.
 
 ### Approval engine (built in Phase 2, used from Phase 3)
 
@@ -157,9 +173,8 @@ erDiagram
   Lead ||--o{ FollowUp : has
   Lead ||--o{ SiteVisit : has
   Lead }o--|| Customer : "converts to"
-  Customer ||--o{ BookingApplicant : is
-  Booking ||--o{ BookingApplicant : has
-  Unit ||--o{ Booking : "booked by"
+  Customer ||--o{ Booking : owns
+  Plot ||--o{ Booking : "booked by"
   Booking ||--o{ Installment : schedule
   Booking ||--o{ Payment : receives
   Payment ||--o{ PaymentAllocation : splits
@@ -179,9 +194,8 @@ erDiagram
 
 **Booking**
 
-- `Booking`: bookingNo ✱, unitId, projectId, primaryCustomerId, bookingDate, listPrice, discountAmount, discountPercent, discountApprovalId?, netPrice, additionalCharges (registration, utility…), totalPayable, bookingMoney, planType (ONE_TIME, INSTALLMENT), status (DRAFT, PENDING_APPROVAL, CONFIRMED, COMPLETED, REGISTERED, CANCELLED, TRANSFERRED), salesExecutiveId (=ownerId), teamId, departmentId, branchId, leadId?, approvalRequestId?, confirmedAt, priceSnapshot JSON.
-- `BookingApplicant`: bookingId, customerId, sharePercent, isPrimary.
-- `BookingTransfer`: bookingId, fromCustomerIds, toCustomerIds, fee, approvalRequestId, transferredAt.
+- `Booking`: bookingNo ✱, plotId, projectId, customerId (single owner), bookingDate, listPrice, discountAmount, discountPercent, discountApprovalId?, netPrice, additionalCharges (registration, utility…), totalPayable, bookingMoney, planType (ONE_TIME, INSTALLMENT), status (DRAFT, PENDING_APPROVAL, CONFIRMED, REGISTERED = plot SOLD, CANCELLED, TRANSFERRED), salesExecutiveId (=ownerId), teamId, departmentId, branchId, leadId?, approvalRequestId?, confirmedAt, priceSnapshot JSON.
+- `BookingTransfer`: bookingId, fromCustomerId, toCustomerId, fee, approvalRequestId, transferredAt.
 
 **EMI**
 

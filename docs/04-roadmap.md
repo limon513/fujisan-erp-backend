@@ -39,16 +39,21 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 
 ## Phase 2 — Real-estate core
 
-- ☐ 2.1 Schema: project, block, road, unit (+ status/price history, holds), customer, nominee
-- ☐ 2.2 Projects / blocks / roads APIs + screens
-- ☐ 2.3 Units API + bulk import from Excel/CSV + screens
-- ☐ 2.4 Unit status state machine, hold/release, hold-expiry job (pg-boss introduced here)
-- ☐ 2.5 Plot map: master-plan upload, map editor (draw polygons + SVG import), map viewer (status colors, filters, zoom, plot drawer with actions)
-- ☐ 2.6 Customers + nominees + documents (APIs + screens), duplicate check by mobile/NID
-- ☐ 2.7 Approval engine (workflows, steps, requests, actions, my-approvals inbox)
-- ☐ 2.8 Dashboard: inventory widgets (available/hold/booked/sold per project)
+Client answers recorded in `01-requirements-analysis.md` §5 (plots only, decimal/sqft, image
+layouts, holds with day limit + auto-release, sold on registration, single owner).
+
+- ☐ 2.1 File service: upload (images/PDF), storage driver (local disk in dev, S3-compatible / Cloudflare R2 for hosted), access-checked download
+- ☐ 2.2 Schema: project, block, road, plot, plot hold / status / price history, customer, nominee
+- ☐ 2.3 Projects, blocks, roads: APIs + screens (project detail with layout image upload)
+- ☐ 2.4 Plots: API + screens, bulk import from Excel/CSV, price history
+- ☐ 2.5 Hold / release / block with history; auto-release job when the days run out
+- ☐ 2.6 Interactive plot map: draw plot shapes on the layout image (editor) + colour-coded viewer with plot details and actions
+- ☐ 2.7 Customers + nominees + documents, duplicate check by mobile/NID
+- ☐ 2.8 Dashboard: plot inventory widgets (available / hold / booked / sold per project)
 
 ## Phase 3 — Revenue engine
+
+- ☐ 3.0 Approval engine (workflows, steps, requests, my-approvals inbox) — moved from Phase 2
 
 - ☐ 3.1 CRM: leads, sources, campaigns, duplicate check, assignment rules, activities, follow-ups, site visits, pipeline (kanban) view
 - ☐ 3.2 Notifications (in-app) + follow-up reminders

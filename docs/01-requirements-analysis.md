@@ -169,6 +169,18 @@ These change the database design, so we need answers **before** the related phas
 - The reference site is inspiration only; `FUJISAN.md` is the source of truth.
 - Backend ships Swagger/OpenAPI docs.
 
+**Decided (2026-10-20) — Phase 2 answers**
+
+1. Plots only (no apartments / commercial units).
+2. Project land is measured in **decimal**, plots in **sqft**. Each plot has its own price; no corner
+   or road-facing premiums (they set the price higher or lower instead).
+3. Layout plans are **images** (AutoCAD stays with the developers). 3D renders may come later.
+4. Holds: Sales Manager and above can hold a plot for a set number of days; it releases
+   automatically when the days run out. The person who asked for the hold (e.g. a sales executive)
+   is recorded, and every hold and release is kept as history.
+5. A plot becomes **SOLD on registration** (booked before that).
+6. **One owner per plot** — no joint ownership.
+
 ---
 
 ## 6. Reference project
