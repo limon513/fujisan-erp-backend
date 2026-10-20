@@ -216,3 +216,134 @@ describe("plot import", () => {
     expect(res.body.message).toMatch(/Missing column\(s\): block, areaSqft/);
   });
 });
+
+describe("plot holds", () => {
+  let plot;
+  let requester;
+  let manager;
+
+  beforeEach(async () => {
+    plot = (await createPlot()).body.data;
+    const org = {
+      branch: { create: { code: "HO", name: "Head Office" } },
+      department: { create: { code: "SALES", name: "Sales" } },
+      designation: { create: { name: "Sales Executive" } },
+    };
+    requester = await prisma.employee.create({
+      data: {
+        employeeCode: "E1",
+        fullName: "Rahim Uddin",
+        mobile: "8801711000001",
+        joiningDate: new Date("2026-01-01"),
+        ...org,
+      },
+    });
+    await createUser({ username: "rahim", roleSlug: "sales-executive", employee: requester });
+    await createUser({ username: "manager", roleSlug: "sales-manager" });
+    manager = await authHeader(request, app, "manager");
+  });
+
+  const act = (auth, action, body = {}) =>
+    request(app).post(`/api/v1/plots/${plot.id}/${action}`).set(auth).send(body);
+
+  it("lets Sales Manager and above hold, recording who asked", async () => {
+    const seller = await authHeader(request, app, "seller");
+    expect(
+      (await act(seller, "hold", { requestedById: requester.id, reason: "Customer visit" })).status,
+    ).toBe(403);
+
+    expect(
+      (await act(manager, "hold", { requestedById: plot.id, reason: "Customer visit" })).status,
+    ).toBe(422);
+
+    const res = await act(manager, "hold", {
+      requestedById: requester.id,
+      days: 3,
+      reason: "Customer visiting on Friday",
+      prospectName: "Karim",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.data).toMatchObject({
+      status: "HOLD",
+      activeHold: { requestedBy: { fullName: "Rahim Uddin" }, heldBy: { username: "manager" } },
+    });
+    const expiresIn = new Date(res.body.data.activeHold.expiresAt) - Date.now();
+    expect(Math.round(expiresIn / 86400000)).toBe(3);
+    expect(res.body.data.holdHistory[0]).toMatchObject({
+      status: "ACTIVE",
+      days: 3,
+      prospectName: "Karim",
+    });
+    expect(res.body.data.statusHistory[0]).toMatchObject({
+      refType: "HOLD",
+      fromStatus: "AVAILABLE",
+      toStatus: "HOLD",
+    });
+
+    // can't hold twice or block a held plot
+    expect(
+      (await act(manager, "hold", { requestedById: requester.id, reason: "Again" })).status,
+    ).toBe(409);
+    expect((await act(admin, "block", { reason: "Legal issue" })).status).toBe(409);
+  });
+
+  it("uses the project's default hold days", async () => {
+    await prisma.project.update({ where: { id: project.id }, data: { defaultHoldDays: 5 } });
+    const res = await act(manager, "hold", {
+      requestedById: requester.id,
+      reason: "Booking next week",
+    });
+    expect(res.body.data.holdHistory[0].days).toBe(5);
+  });
+
+  it("releases a hold manually and keeps it in history", async () => {
+    await act(manager, "hold", { requestedById: requester.id, reason: "Customer visit" });
+    const res = await act(manager, "release", { reason: "Customer chose another plot" });
+    expect(res.body.data).toMatchObject({ status: "AVAILABLE", activeHold: null });
+    expect(res.body.data.holdHistory[0]).toMatchObject({
+      status: "RELEASED",
+      releaseReason: "Customer chose another plot",
+      releasedBy: { username: "manager" },
+    });
+    expect((await act(manager, "release", { reason: "Twice" })).status).toBe(409);
+  });
+
+  it("expires holds when the days run out and notifies both people", async () => {
+    await act(manager, "hold", { requestedById: requester.id, days: 1, reason: "Customer visit" });
+    await prisma.plotHold.updateMany({ data: { expiresAt: new Date(Date.now() - 1000) } });
+
+    // reading plots expires due holds even without the background job
+    const list = await request(app).get(`/api/v1/plots?projectId=${project.id}`).set(admin);
+    expect(list.body.data[0]).toMatchObject({ status: "AVAILABLE", activeHold: null });
+
+    const detail = await request(app).get(`/api/v1/plots/${plot.id}`).set(admin);
+    expect(detail.body.data.holdHistory[0]).toMatchObject({
+      status: "EXPIRED",
+      releaseReason: "Hold period of 1 days ended",
+    });
+    expect(detail.body.data.statusHistory[0]).toMatchObject({
+      refType: "EXPIRY",
+      toStatus: "AVAILABLE",
+      changedById: null,
+    });
+
+    const notified = await prisma.notification.findMany({
+      where: { type: "PLOT_HOLD_EXPIRED" },
+      include: { user: true },
+    });
+    expect(notified.map((n) => n.user.username).sort()).toEqual(["manager", "rahim"]);
+  });
+
+  it("blocks and unblocks available plots", async () => {
+    const blocked = await act(admin, "block", { reason: "Pending land dispute" });
+    expect(blocked.body.data.status).toBe("BLOCKED");
+    expect(
+      (await act(manager, "hold", { requestedById: requester.id, reason: "x x x" })).status,
+    ).toBe(409);
+    const unblocked = await act(admin, "unblock", { reason: "Dispute resolved" });
+    expect(unblocked.body.data.statusHistory.map((h) => h.refType).slice(0, 2)).toEqual([
+      "UNBLOCK",
+      "BLOCK",
+    ]);
+  });
+});

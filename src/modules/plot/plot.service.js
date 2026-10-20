@@ -3,8 +3,10 @@ import prisma from "#core/db/prisma.js";
 import AppError from "#core/errors/AppError.js";
 import { recordAudit } from "#core/audit/audit.service.js";
 import { buildListArgs, paginationMeta } from "#core/utils/listQuery.js";
+import { PlotHoldService } from "./plot.hold.service.js";
 import { readPlotSheet } from "./plot.import.js";
 import {
+  holdHistoryQuery,
   FACINGS,
   LOCKED_STATUSES,
   plotDetailSelect,
@@ -37,6 +39,9 @@ async function resolveLocation(projectId, { blockId, roadId }) {
 // ---------------------------------------------------------------------------------------------
 
 const list = async (query) => {
+  // Holds also expire on read, so the list is right even if the background job hasn't run
+  // (e.g. the hosted instance was asleep).
+  await PlotHoldService.expireDueHolds();
   const { skip, take, orderBy } = buildListArgs(query);
   const range = (min, max) =>
     min !== undefined || max !== undefined
@@ -67,7 +72,14 @@ const list = async (query) => {
   return { data: rows.map(toPlotDto), meta: paginationMeta(query, total) };
 };
 
-const getById = async (id) => toPlotDto(await findPlot(id));
+const getById = async (id) => {
+  await PlotHoldService.expireDueHolds();
+  const [plot, holdHistory] = await Promise.all([
+    findPlot(id),
+    prisma.plotHold.findMany({ where: { plotId: id }, ...holdHistoryQuery }),
+  ]);
+  return { ...toPlotDto(plot), holdHistory };
+};
 
 const create = async (actor, { projectId, price, ...data }) => {
   const project = await prisma.project.findFirst({ where: { id: projectId, deletedAt: null } });

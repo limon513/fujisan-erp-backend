@@ -31,7 +31,7 @@ export const plotListSelect = {
   remarks: true,
   createdAt: true,
   updatedAt: true,
-  project: { select: { id: true, code: true, name: true } },
+  project: { select: { id: true, code: true, name: true, defaultHoldDays: true } },
   block: { select: { id: true, code: true, name: true } },
   road: { select: { id: true, name: true } },
   holds: {
@@ -76,3 +76,24 @@ export const IMPORT_COLUMNS = {
 };
 
 export const MAX_IMPORT_ROWS = 2000;
+
+/** Every hold the plot ever had (newest first). */
+export const holdHistoryQuery = {
+  orderBy: { createdAt: "desc" },
+  take: 50,
+  select: {
+    id: true,
+    status: true,
+    reason: true,
+    days: true,
+    expiresAt: true,
+    createdAt: true,
+    releasedAt: true,
+    releaseReason: true,
+    prospectName: true,
+    prospectMobile: true,
+    requestedBy: { select: { id: true, fullName: true } },
+    heldBy: actor,
+    releasedBy: actor,
+  },
+};

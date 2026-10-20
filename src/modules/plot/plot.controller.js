@@ -1,6 +1,7 @@
 import { StatusCodes } from "http-status-codes";
 import sendResponse from "#core/utils/sendResponse.js";
 import { IMPORT_TEMPLATE } from "./plot.import.js";
+import { PlotHoldService } from "./plot.hold.service.js";
 import { PlotService } from "./plot.service.js";
 
 const list = async (req, res) => {
@@ -48,7 +49,35 @@ const importTemplate = (_req, res) => {
   res.send(IMPORT_TEMPLATE);
 };
 
+/** Runs a status action, then returns the refreshed plot. */
+const statusAction = (action, message) => async (req, res) => {
+  await action(req);
+  const data = await PlotService.getById(req.valid.params.id);
+  return sendResponse(res, { message, data });
+};
+
+const hold = statusAction(
+  (req) => PlotHoldService.hold(req.actor, req.valid.params.id, req.body),
+  "Plot put on hold",
+);
+const release = statusAction(
+  (req) => PlotHoldService.release(req.actor, req.valid.params.id, req.body),
+  "Hold released",
+);
+const block = statusAction(
+  (req) => PlotHoldService.setBlocked(req.actor, req.valid.params.id, true, req.body),
+  "Plot blocked",
+);
+const unblock = statusAction(
+  (req) => PlotHoldService.setBlocked(req.actor, req.valid.params.id, false, req.body),
+  "Plot unblocked",
+);
+
 export const PlotController = {
+  hold,
+  release,
+  block,
+  unblock,
   list,
   getById,
   create,

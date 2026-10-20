@@ -79,4 +79,34 @@ const importQuery = z.object({
     .meta({ description: "true = validate and preview only (default); false = create the plots" }),
 });
 
-export const PlotValidation = { idParams, create, update, changePrice, list, importQuery };
+const reason = z.string().trim().min(3, "Give a reason").max(300);
+
+const hold = z.object({
+  requestedById: z
+    .uuid()
+    .meta({ description: "Employee who asked for the hold (e.g. the sales executive)" }),
+  days: z
+    .number()
+    .int()
+    .min(1)
+    .max(90)
+    .optional()
+    .meta({ description: "Defaults to the project's default hold days" }),
+  reason,
+  customerId: optionalId(),
+  prospectName: optionalText(120),
+  prospectMobile: optionalText(20),
+});
+
+const withReason = z.object({ reason });
+
+export const PlotValidation = {
+  idParams,
+  create,
+  update,
+  changePrice,
+  list,
+  importQuery,
+  hold,
+  withReason,
+};

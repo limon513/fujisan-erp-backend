@@ -117,3 +117,37 @@ registry.registerPath({
   security: [{ bearerAuth: [] }],
   responses: { 200: { description: "CSV file", content: { "text/csv": { schema: z.string() } } } },
 });
+
+const statusActions = [
+  [
+    "hold",
+    "Put a plot on hold",
+    "Requires `plot.hold` (Sales Manager and above). Records who asked for it, the reason and the number of days (default: the project's). Only AVAILABLE plots; one active hold per plot. Released automatically when the days run out.",
+    V.hold,
+  ],
+  [
+    "release",
+    "Release a hold",
+    "Requires `plot.hold`. The plot becomes AVAILABLE; the hold stays in history.",
+    V.withReason,
+  ],
+  [
+    "block",
+    "Block a plot",
+    "Requires `plot.block`. Takes an AVAILABLE plot off the market.",
+    V.withReason,
+  ],
+  ["unblock", "Unblock a plot", "Requires `plot.block`.", V.withReason],
+];
+for (const [action, summary, description, body] of statusActions) {
+  defineRoute({
+    method: "post",
+    path: `/plots/:id/${action}`,
+    tags,
+    summary,
+    description,
+    request: { params: V.idParams, body },
+    response: Plot,
+    errors: [400, 401, 403, 404, 409, 422],
+  });
+}

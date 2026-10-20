@@ -33,6 +33,30 @@ router.post(
   validate({ params: V.idParams, body: V.changePrice }),
   C.changePrice,
 );
+router.post(
+  "/:id/hold",
+  authorize("plot.hold"),
+  validate({ params: V.idParams, body: V.hold }),
+  C.hold,
+);
+router.post(
+  "/:id/release",
+  authorize("plot.hold"),
+  validate({ params: V.idParams, body: V.withReason }),
+  C.release,
+);
+router.post(
+  "/:id/block",
+  authorize("plot.block"),
+  validate({ params: V.idParams, body: V.withReason }),
+  C.block,
+);
+router.post(
+  "/:id/unblock",
+  authorize("plot.block"),
+  validate({ params: V.idParams, body: V.withReason }),
+  C.unblock,
+);
 router.delete("/:id", authorize("plot.delete"), validate({ params: V.idParams }), C.remove);
 
 export const PlotRoute = router;
