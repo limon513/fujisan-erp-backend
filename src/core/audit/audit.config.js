@@ -29,6 +29,13 @@ export const AUDITED_MODELS = {
     ],
   },
   Role: { label: "name", ignore: ["permissionsVersion"] },
+  Project: { label: "name" },
+  Block: { label: "name" },
+  Road: { label: "name" },
+  // Status changes have their own history table, but stay in the audit log too
+  Plot: { label: "code", ignore: ["statusChangedAt", "mapShape", "mapLabel"] },
+  Customer: { label: "fullName" },
+  CustomerNominee: { label: "fullName" },
 };
 
 /** Ignored on every model. */

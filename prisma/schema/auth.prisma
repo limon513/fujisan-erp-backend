@@ -50,12 +50,14 @@ model User {
   updatedById          String?    @db.Uuid
   deletedAt            DateTime?  @db.Timestamptz(3)
 
-  employee      Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  role          Role           @relation(fields: [roleId], references: [id], onDelete: Restrict)
-  sessions      Session[]
-  loginHistory  LoginHistory[]
-  otpTokens     OtpToken[]
-  notifications Notification[]
+  employee          Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  role              Role           @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  sessions          Session[]
+  loginHistory      LoginHistory[]
+  otpTokens         OtpToken[]
+  notifications     Notification[]
+  plotHoldsPlaced   PlotHold[]     @relation("PlotHoldsPlaced")
+  plotHoldsReleased PlotHold[]     @relation("PlotHoldsReleased")
 
   @@index([roleId])
 }

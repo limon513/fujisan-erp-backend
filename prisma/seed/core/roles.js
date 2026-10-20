@@ -21,7 +21,7 @@ const SALES = [
   "discount-request",
   "booking",
 ];
-const INVENTORY_VIEW = ["project", "block", "road", "unit"];
+const INVENTORY_VIEW = ["project", "plot"];
 const FINANCE = [
   "collection",
   "emi",
@@ -55,9 +55,25 @@ const each = (resources, action, scope) =>
   resources.map((resource) => [`${resource}.${action}`, scope]);
 const all = (resources, scope) => each(resources, "*", scope);
 
+// Plots: holding and pricing are management decisions (client rule: Sales Manager and above hold)
+const PLOT_CONTROL = [
+  ["plot.hold", "ALL"],
+  ["plot.price", "ALL"],
+  ["plot.block", "ALL"],
+];
+
 const EVERYONE = [
   ["dashboard.view", "OWN"],
   ["notification.*", "OWN"],
+];
+
+const MANAGEMENT = [
+  ...EVERYONE,
+  ["*.view", "ALL"],
+  ["*.approve", "ALL"],
+  ["*.export", "ALL"],
+  ["*.print", "ALL"],
+  ...PLOT_CONTROL,
 ];
 
 export const systemRoles = [
@@ -74,39 +90,21 @@ export const systemRoles = [
     name: "Chairman",
     level: 95,
     require2FA: true,
-    template: [
-      ...EVERYONE,
-      ["*.view", "ALL"],
-      ["*.approve", "ALL"],
-      ["*.export", "ALL"],
-      ["*.print", "ALL"],
-    ],
+    template: MANAGEMENT,
   },
   {
     slug: "managing-director",
     name: "Managing Director",
     level: 90,
     require2FA: true,
-    template: [
-      ...EVERYONE,
-      ["*.view", "ALL"],
-      ["*.approve", "ALL"],
-      ["*.export", "ALL"],
-      ["*.print", "ALL"],
-    ],
+    template: MANAGEMENT,
   },
   {
     slug: "director",
     name: "Director",
     level: 85,
     require2FA: true,
-    template: [
-      ...EVERYONE,
-      ["*.view", "ALL"],
-      ["*.approve", "ALL"],
-      ["*.export", "ALL"],
-      ["*.print", "ALL"],
-    ],
+    template: MANAGEMENT,
   },
   {
     slug: "gm-dgm",
@@ -121,6 +119,7 @@ export const systemRoles = [
       ["*.print", "ALL"],
       ["audit-log.view", null],
       ["setting.view", null],
+      ...PLOT_CONTROL,
     ],
   },
   {
@@ -147,7 +146,7 @@ export const systemRoles = [
       ...EVERYONE,
       ...all(SALES, "BRANCH"),
       ...each(INVENTORY_VIEW, "view", "ALL"),
-      ["unit.hold", "BRANCH"],
+      ["plot.hold", "ALL"],
       ["emi.view", "BRANCH"],
       ["collection.view", "BRANCH"],
       ["cancellation.view", "BRANCH"],
@@ -168,7 +167,6 @@ export const systemRoles = [
       ...all(SALES, "TEAM"),
       ...each(SALES, "delete", null),
       ...each(INVENTORY_VIEW, "view", "ALL"),
-      ["unit.hold", "TEAM"],
       ["emi.view", "TEAM"],
       ["collection.view", "TEAM"],
       ["target.view", "TEAM"],
@@ -199,7 +197,6 @@ export const systemRoles = [
       ["booking.view", "OWN"],
       ["booking.create", "OWN"],
       ...each(INVENTORY_VIEW, "view", "ALL"),
-      ["unit.hold", "OWN"],
       ["emi.view", "OWN"],
       ["collection.view", "OWN"],
       ["target.view", "OWN"],
@@ -321,11 +318,12 @@ export const systemRoles = [
     level: 60,
     template: [
       ...EVERYONE,
-      ...all(["project", "block", "road"], "ALL"),
-      ["unit.view", "ALL"],
-      ["unit.create", "ALL"],
-      ["unit.edit", "ALL"],
-      ["unit.block", "ALL"],
+      ...all(["project"], "ALL"),
+      ["plot.view", "ALL"],
+      ["plot.create", "ALL"],
+      ["plot.edit", "ALL"],
+      ["plot.block", "ALL"],
+      ["plot.price", "ALL"],
       ...all(CONSTRUCTION, "ALL"),
       ["purchase-request.view", "ALL"],
       ["purchase-request.create", "ALL"],

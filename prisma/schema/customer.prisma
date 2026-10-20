@@ -1,0 +1,61 @@
+// Customers (one owner per plot) and their nominees.
+
+model Customer {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  customerCode     String    @unique
+  fullName         String
+  fatherName       String?
+  motherName       String?
+  spouseName       String?
+  dateOfBirth      DateTime? @db.Date
+  gender           Gender?
+  nidNumber        String?
+  passportNumber   String?
+  tin              String?
+  profession       String?
+  organization     String?
+  /// normalized 8801XXXXXXXXX
+  mobile           String
+  altMobile        String?
+  email            String?
+  presentAddress   String?
+  permanentAddress String?
+  photoFileId      String?   @db.Uuid
+  notes            String?
+  /// data scope: who owns the relationship (sales executive), stamped at creation
+  ownerId          String?   @db.Uuid
+  teamId           String?   @db.Uuid
+  departmentId     String?   @db.Uuid
+  branchId         String?   @db.Uuid
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(3)
+  createdById      String?   @db.Uuid
+  updatedById      String?   @db.Uuid
+  deletedAt        DateTime? @db.Timestamptz(3)
+
+  owner     Employee?         @relation("CustomerOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  nominees  CustomerNominee[]
+  plotHolds PlotHold[]
+
+  @@index([mobile])
+  @@index([nidNumber])
+  @@index([ownerId])
+  @@index([branchId])
+}
+
+model CustomerNominee {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  customerId   String   @db.Uuid
+  fullName     String
+  relation     String
+  nidNumber    String?
+  mobile       String?
+  sharePercent Decimal  @db.Decimal(5, 2)
+  photoFileId  String?  @db.Uuid
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(3)
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+}

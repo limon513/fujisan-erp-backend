@@ -108,6 +108,9 @@ Fujisan-Backend/
   functions (no `catchAsync` wrapper needed).
 - Validated input is read from `req.valid.{params,query,body}` (`req.body` is also replaced).
   Express 5 makes `req.query` read-only, so never read raw `req.query` in controllers.
+- **Update schemas never contain `.default()`**: zod keeps defaults inside `.partial()`, so a PATCH
+  with one field would silently reset the others. Build update schemas from a defaults-free shape
+  and add defaults only to the create schema.
 - Imports use Node subpath aliases: `#config/*`, `#core/*`, `#modules/*`, `#generated/*`.
 - Prisma uses the new `prisma-client` generator (output `src/generated/prisma`, git-ignored).
   It emits `.ts` files that Node ≥ 22.18 runs natively (type stripping). Our own code stays `.js`.

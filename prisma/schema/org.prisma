@@ -54,6 +54,7 @@ model Branch {
 
   teams     Team[]
   employees Employee[]
+  projects  Project[]
 }
 
 model Department {
@@ -174,9 +175,12 @@ model Employee {
   reportingManager Employee?   @relation("ReportingLine", fields: [reportingManagerId], references: [id], onDelete: SetNull)
   directReports    Employee[]  @relation("ReportingLine")
 
-  user        User?
-  ledTeams    Team[]       @relation("TeamLeader")
-  headedDepts Department[] @relation("DepartmentHead")
+  user             User?
+  ledTeams         Team[]       @relation("TeamLeader")
+  headedDepts      Department[] @relation("DepartmentHead")
+  managedProjects  Project[]    @relation("ProjectManager")
+  plotHoldRequests PlotHold[]   @relation("PlotHoldRequests")
+  customersOwned   Customer[]   @relation("CustomerOwner")
 
   @@index([branchId])
   @@index([departmentId])

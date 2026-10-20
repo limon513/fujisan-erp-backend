@@ -56,8 +56,9 @@ model File {
   createdAt          DateTime               @default(now()) @db.Timestamptz(3)
   deletedAt          DateTime?              @db.Timestamptz(3)
 
-  previousVersion File? @relation("FileVersions", fields: [previousVersionId], references: [id], onDelete: SetNull)
-  nextVersion     File? @relation("FileVersions")
+  previousVersion File?     @relation("FileVersions", fields: [previousVersionId], references: [id], onDelete: SetNull)
+  nextVersion     File?     @relation("FileVersions")
+  projectLayouts  Project[] @relation("ProjectLayout")
 
   @@index([entityType, entityId])
 }
