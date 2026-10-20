@@ -319,7 +319,7 @@ describe("plot holds", () => {
     const detail = await request(app).get(`/api/v1/plots/${plot.id}`).set(admin);
     expect(detail.body.data.holdHistory[0]).toMatchObject({
       status: "EXPIRED",
-      releaseReason: "Hold period of 1 days ended",
+      releaseReason: "Hold period of 1 day ended",
     });
     expect(detail.body.data.statusHistory[0]).toMatchObject({
       refType: "EXPIRY",

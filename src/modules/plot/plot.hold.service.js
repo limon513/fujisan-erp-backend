@@ -4,6 +4,7 @@ import { recordAudit } from "#core/audit/audit.service.js";
 import logger from "#core/utils/logger.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const dayText = (days) => `${days} day${days === 1 ? "" : "s"}`;
 const invalid = (path, message) => AppError.unprocessable(message, [{ path, message }]);
 
 const findPlot = async (id) => {
@@ -80,7 +81,7 @@ const hold = async (
     const moved = await transition(tx, plotId, "AVAILABLE", "HOLD", {
       refType: "HOLD",
       refId: placed.id,
-      reason: `${reason} (requested by ${requester.fullName}, ${holdDays} days)`,
+      reason: `${reason} (requested by ${requester.fullName}, ${dayText(holdDays)})`,
       changedById: actor.userId,
     });
     if (!moved) throw AppError.conflict(`Plot ${plot.code} was just taken by someone else`);
@@ -91,7 +92,7 @@ const hold = async (
     action: "PLOT_HOLD",
     entityType: "Plot",
     entityId: plotId,
-    description: `Held plot ${plot.code} for ${holdDays} days, requested by ${requester.fullName}`,
+    description: `Held plot ${plot.code} for ${dayText(holdDays)}, requested by ${requester.fullName}`,
     newValues: {
       holdId: created.id,
       requestedBy: requester.fullName,
@@ -189,14 +190,14 @@ const expireDueHolds = async () => {
           data: {
             status: "EXPIRED",
             releasedAt: new Date(),
-            releaseReason: `Hold period of ${holdRow.days} days ended`,
+            releaseReason: `Hold period of ${dayText(holdRow.days)} ended`,
           },
         });
         if (!count) return false;
         await transition(tx, holdRow.plotId, "HOLD", "AVAILABLE", {
           refType: "EXPIRY",
           refId: holdRow.id,
-          reason: `Hold period of ${holdRow.days} days ended`,
+          reason: `Hold period of ${dayText(holdRow.days)} ended`,
         });
         const recipients = new Set(
           [holdRow.heldById, holdRow.requestedBy.user?.id].filter(Boolean),
@@ -206,7 +207,7 @@ const expireDueHolds = async () => {
             userId,
             type: "PLOT_HOLD_EXPIRED",
             title: `Hold on plot ${holdRow.plot.code} expired`,
-            body: `The ${holdRow.days}-day hold requested by ${holdRow.requestedBy.fullName} has ended; the plot is available again.`,
+            body: `The ${dayText(holdRow.days)} hold requested by ${holdRow.requestedBy.fullName} has ended; the plot is available again.`,
             link: `/plots?search=${encodeURIComponent(holdRow.plot.code)}`,
             data: { plotId: holdRow.plotId, holdId: holdRow.id },
           })),
