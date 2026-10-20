@@ -41,15 +41,24 @@ Notes:
 - `TRUST_PROXY=2` (Vercel + Render). After the first login, check _My login history_ shows your
   real public IP; if it shows a Vercel/Render address, adjust `TRUST_PROXY`.
 
-### File storage (Cloudflare R2)
+### File storage (Neon storage or Cloudflare R2)
 
 Uploaded files (plot layout images, documents) can't live on Render's disk — it's wiped on every
-deploy. Use a private R2 bucket (free tier: 10 GB):
+deploy. Use any private S3-compatible bucket. The demo uses **Neon storage** (same Neon project):
 
-1. Cloudflare dashboard → R2 → **Create bucket** (e.g. `fujisan-erp-demo`), keep it private.
-2. R2 → **Manage API tokens** → create a token with _Object Read & Write_ on that bucket.
-3. In Render set `STORAGE_DRIVER=s3`, `S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`,
-   `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` (`S3_REGION` stays `auto`).
+| Render variable                               | Value                                                                         |
+| --------------------------------------------- | ----------------------------------------------------------------------------- |
+| `STORAGE_DRIVER`                              | `s3`                                                                          |
+| `S3_BUCKET`                                   | `uploads` (the bucket must already exist)                                     |
+| `AWS_ENDPOINT_URL_S3`                         | from Neon → Storage (e.g. `https://br-….storage.c-6.us-east-2.aws.neon.tech`) |
+| `AWS_REGION`                                  | `us-east-2`                                                                   |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | a Neon storage credential                                                     |
+
+The backend accepts either these standard `AWS_*` names (paste Neon's block as-is) or
+`S3_ENDPOINT` / `S3_REGION` / `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY`.
+
+Cloudflare R2 works the same way: endpoint `https://<account-id>.r2.cloudflarestorage.com`,
+region `auto`, and an R2 API token with read/write on the bucket.
 
 Files are always served through the API with short-lived signed links, so the bucket never needs
 public access.

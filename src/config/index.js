@@ -52,6 +52,17 @@ const envSchema = z.object({
   MAX_UPLOAD_MB: z.coerce.number().positive().default(10),
 });
 
+// S3_* settings fall back to the standard AWS variable names, so a provider's ready-made block
+// (Neon storage, AWS, R2 examples) can be pasted as-is. Empty values count as unset.
+const pick = (...names) => names.map((name) => process.env[name]).find((value) => value);
+const source = {
+  ...process.env,
+  S3_ENDPOINT: pick("S3_ENDPOINT", "AWS_ENDPOINT_URL_S3", "AWS_ENDPOINT_URL"),
+  S3_REGION: pick("S3_REGION", "AWS_REGION", "AWS_DEFAULT_REGION"),
+  S3_ACCESS_KEY_ID: pick("S3_ACCESS_KEY_ID", "AWS_ACCESS_KEY_ID"),
+  S3_SECRET_ACCESS_KEY: pick("S3_SECRET_ACCESS_KEY", "AWS_SECRET_ACCESS_KEY"),
+};
+
 const parsed = envSchema
   .refine(
     (e) =>
@@ -62,7 +73,7 @@ const parsed = envSchema
         "S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required when STORAGE_DRIVER=s3",
     },
   )
-  .safeParse(process.env);
+  .safeParse(source);
 
 if (!parsed.success) {
   console.error("Invalid environment configuration:");
