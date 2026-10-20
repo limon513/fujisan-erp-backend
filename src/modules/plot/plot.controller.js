@@ -2,6 +2,7 @@ import { StatusCodes } from "http-status-codes";
 import sendResponse from "#core/utils/sendResponse.js";
 import { IMPORT_TEMPLATE } from "./plot.import.js";
 import { PlotHoldService } from "./plot.hold.service.js";
+import { PlotMapService } from "./plot.map.service.js";
 import { PlotService } from "./plot.service.js";
 
 const list = async (req, res) => {
@@ -73,7 +74,20 @@ const unblock = statusAction(
   "Plot unblocked",
 );
 
+const map = async (req, res) => {
+  const data = await PlotMapService.getMap(req.valid.query.projectId);
+  return sendResponse(res, { message: "Plot map", data });
+};
+
+const setShape = async (req, res) => {
+  await PlotMapService.setShape(req.actor, req.valid.params.id, req.body);
+  const data = await PlotService.getById(req.valid.params.id);
+  return sendResponse(res, { message: req.body.points ? "Shape saved" : "Shape removed", data });
+};
+
 export const PlotController = {
+  map,
+  setShape,
   hold,
   release,
   block,

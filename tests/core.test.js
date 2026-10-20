@@ -59,3 +59,23 @@ describe("listQuery", () => {
     expect(paginationMeta(query, 45)).toEqual({ page: 3, limit: 10, total: 45, totalPages: 5 });
   });
 });
+
+describe("polygonCentroid", async () => {
+  const { polygonCentroid } = await import("#modules/plot/plot.map.service.js");
+  it("finds the centre of rectangles and triangles", () => {
+    expect(
+      polygonCentroid([
+        [0, 0],
+        [10, 0],
+        [10, 4],
+        [0, 4],
+      ]),
+    ).toEqual({ x: 5, y: 2 });
+    const t = polygonCentroid([
+      [0, 0],
+      [6, 0],
+      [0, 6],
+    ]);
+    expect([t.x, t.y]).toEqual([2, 2]);
+  });
+});

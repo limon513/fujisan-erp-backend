@@ -347,3 +347,77 @@ describe("plot holds", () => {
     ]);
   });
 });
+
+describe("plot map", () => {
+  it("saves outlines inside the layout and serves the map", async () => {
+    const plot = (await createPlot()).body.data;
+    await createPlot({ plotNumber: "2" });
+    const square = {
+      points: [
+        [100, 50],
+        [200, 50],
+        [200, 150],
+        [100, 150],
+      ],
+    };
+
+    // no layout yet
+    expect(
+      (await request(app).put(`/api/v1/plots/${plot.id}/shape`).set(admin).send(square)).status,
+    ).toBe(422);
+
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { layoutWidth: 1000, layoutHeight: 560 },
+    });
+    const outside = await request(app)
+      .put(`/api/v1/plots/${plot.id}/shape`)
+      .set(admin)
+      .send({
+        points: [
+          [0, 0],
+          [1200, 0],
+          [0, 10],
+        ],
+      });
+    expect(outside.status).toBe(422);
+    expect(
+      (
+        await request(app)
+          .put(`/api/v1/plots/${plot.id}/shape`)
+          .set(admin)
+          .send({
+            points: [
+              [0, 0],
+              [1, 1],
+            ],
+          })
+      ).status,
+    ).toBe(400);
+
+    const saved = await request(app).put(`/api/v1/plots/${plot.id}/shape`).set(admin).send(square);
+    expect(saved.status).toBe(200);
+    expect(saved.body.data.mapLabel).toEqual({ x: 150, y: 100 });
+
+    const seller = await authHeader(request, app, "seller");
+    expect(
+      (await request(app).put(`/api/v1/plots/${plot.id}/shape`).set(seller).send(square)).status,
+    ).toBe(403);
+
+    const map = await request(app).get(`/api/v1/plots/map?projectId=${project.id}`).set(seller);
+    expect(map.status).toBe(200);
+    expect(map.body.data.counts).toMatchObject({ AVAILABLE: 2, total: 2, mapped: 1 });
+    expect(map.body.data.plots[0]).toMatchObject({
+      code: "A-1",
+      mapShape: square,
+      holdExpiresAt: null,
+    });
+    expect(map.body.data.plots[1].mapShape).toBeNull();
+
+    const cleared = await request(app)
+      .put(`/api/v1/plots/${plot.id}/shape`)
+      .set(admin)
+      .send({ points: null });
+    expect(cleared.body.data.mapLabel).toBeNull();
+  });
+});

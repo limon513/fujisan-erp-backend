@@ -100,6 +100,20 @@ const hold = z.object({
 
 const withReason = z.object({ reason });
 
+const mapQuery = z.object({ projectId: z.uuid() });
+
+const point = z.tuple([z.number().finite(), z.number().finite()]);
+
+const shape = z.object({
+  points: z.array(point).min(3, "A shape needs at least 3 points").max(200).nullable().meta({
+    description: "Polygon corners in layout-image pixels [[x, y], ...]; null removes the shape",
+  }),
+  label: z
+    .object({ x: z.number().finite(), y: z.number().finite() })
+    .optional()
+    .meta({ description: "Where to print the plot number (default: the shape's centre)" }),
+});
+
 export const PlotValidation = {
   idParams,
   create,
@@ -109,4 +123,6 @@ export const PlotValidation = {
   importQuery,
   hold,
   withReason,
+  mapQuery,
+  shape,
 };

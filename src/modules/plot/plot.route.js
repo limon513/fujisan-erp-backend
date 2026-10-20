@@ -11,6 +11,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/", authorize("plot.view"), validate({ query: V.list }), C.list);
+router.get("/map", authorize("plot.view"), validate({ query: V.mapQuery }), C.map);
 router.get("/import-template", authorize("plot.create"), C.importTemplate);
 router.post(
   "/import",
@@ -56,6 +57,12 @@ router.post(
   authorize("plot.block"),
   validate({ params: V.idParams, body: V.withReason }),
   C.unblock,
+);
+router.put(
+  "/:id/shape",
+  authorize("plot.edit"),
+  validate({ params: V.idParams, body: V.shape }),
+  C.setShape,
 );
 router.delete("/:id", authorize("plot.delete"), validate({ params: V.idParams }), C.remove);
 

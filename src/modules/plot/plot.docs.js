@@ -151,3 +151,52 @@ for (const [action, summary, description, body] of statusActions) {
     errors: [400, 401, 403, 404, 409, 422],
   });
 }
+
+const MapPlot = z.object({
+  id: z.uuid(),
+  code: z.string(),
+  plotNumber: z.string(),
+  status: PlotStatus,
+  areaSqft: decimal,
+  price: decimal,
+  facing: Facing.nullable(),
+  block: z.object({ id: z.uuid(), code: z.string(), name: z.string() }),
+  mapShape: z.object({ points: z.array(z.tuple([z.number(), z.number()])) }).nullable(),
+  mapLabel: z.object({ x: z.number(), y: z.number() }).nullable(),
+  holdExpiresAt: z.iso.datetime().nullable(),
+});
+
+defineRoute({
+  method: "get",
+  path: "/plots/map",
+  tags,
+  summary: "Everything the plot map needs for a project",
+  description:
+    "Requires `plot.view`. Layout image (signed URL + size), counts by status, and every plot with its shape (layout-image pixels).",
+  request: { query: V.mapQuery },
+  response: z.object({
+    project: z.object({
+      id: z.uuid(),
+      code: z.string(),
+      name: z.string(),
+      layout: z
+        .object({ url: z.string(), width: z.number().int(), height: z.number().int() })
+        .nullable(),
+    }),
+    counts: z.record(z.string(), z.number().int()),
+    plots: z.array(MapPlot),
+  }),
+  errors: [400, 401, 403, 404],
+});
+
+defineRoute({
+  method: "put",
+  path: "/plots/:id/shape",
+  tags,
+  summary: "Save or remove a plot's outline on the layout image",
+  description:
+    "Requires `plot.edit`. Points must lie inside the layout image; the label defaults to the shape's centre.",
+  request: { params: V.idParams, body: V.shape },
+  response: Plot,
+  errors: [400, 401, 403, 404, 422],
+});
