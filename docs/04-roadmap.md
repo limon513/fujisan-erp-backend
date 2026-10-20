@@ -44,7 +44,7 @@ layouts, holds with day limit + auto-release, sold on registration, single owner
 
 - ☑ 2.1 File service: upload (images/PDF), storage driver (local disk in dev, S3-compatible / Cloudflare R2 for hosted), access-checked download
 - ☑ 2.2 Schema: project, block, road, plot, plot hold / status / price history, customer, nominee
-- ◐ 2.3 Projects, blocks, roads: APIs ☑ + screens ☐ (project detail with layout image upload)
+- ☑ 2.3 Projects, blocks, roads: APIs + screens (project cards with plot-status bars, project page with overview / blocks / roads / layout tabs, layout image upload)
 - ☐ 2.4 Plots: API + screens, bulk import from Excel/CSV, price history
 - ☐ 2.5 Hold / release / block with history; auto-release job when the days run out
 - ☐ 2.6 Interactive plot map: draw plot shapes on the layout image (editor) + colour-coded viewer with plot details and actions
