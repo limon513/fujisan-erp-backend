@@ -44,6 +44,15 @@ export default function normalizeError(error) {
   if (error instanceof AppError) return error;
   if (error instanceof ZodError) return fromZod(error);
   if (error?.name === "PrismaClientKnownRequestError") return fromPrisma(error);
+  if (error?.name === "MulterError") {
+    return error.code === "LIMIT_FILE_SIZE"
+      ? new AppError(StatusCodes.REQUEST_TOO_LONG, "File is too large", [
+          { path: "file", message: "File is too large" },
+        ])
+      : AppError.badRequest(error.message, [
+          { path: error.field ?? "file", message: error.message },
+        ]);
+  }
   if (error?.type === "entity.parse.failed") return AppError.badRequest("Malformed JSON body");
   if (error?.type === "entity.too.large") {
     return new AppError(StatusCodes.REQUEST_TOO_LONG, "Request body too large");

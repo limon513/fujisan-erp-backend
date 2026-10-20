@@ -35,6 +35,10 @@ model File {
   originalName       String
   mimeType           String
   size               Int
+  /// pixel size for images (layout plans use it as the map coordinate space)
+  width              Int?
+  height             Int?
+  /// sha256 of the content
   checksum           String?
   /// owner record, e.g. ("CUSTOMER", <id>)
   entityType         String?

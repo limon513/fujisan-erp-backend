@@ -37,5 +37,16 @@ services:
         value: superadmin
       - key: SEED_ADMIN_PASSWORD
         sync: false # first Super Admin password (must be changed on first login)
+      # Uploaded files (plot layouts, documents). Render's disk is wiped on deploy → use R2/S3.
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_ENDPOINT
+        sync: false # https://<account-id>.r2.cloudflarestorage.com
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
       - key: MAIL_FROM
         value: Fujisan ERP <no-reply@fujisan.example>

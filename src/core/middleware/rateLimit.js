@@ -22,3 +22,13 @@ export const authLimiter = rateLimit({
   message: limitedResponse("Too many attempts, please try again later"),
   skip: () => config.isTest,
 });
+
+/** File uploads per IP. */
+export const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: limitedResponse("Too many uploads, please try again later"),
+  skip: () => config.isTest,
+});

@@ -40,9 +40,29 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   MAIL_FROM: z.string().default("ERP <no-reply@localhost>"),
+
+  // File storage: "local" (development) or "s3" (any S3-compatible service, e.g. Cloudflare R2)
+  STORAGE_DRIVER: z.enum(["local", "s3"]).default("local"),
+  STORAGE_LOCAL_DIR: z.string().default("storage"),
+  S3_ENDPOINT: z.string().optional(),
+  S3_REGION: z.string().default("auto"),
+  S3_BUCKET: z.string().optional(),
+  S3_ACCESS_KEY_ID: z.string().optional(),
+  S3_SECRET_ACCESS_KEY: z.string().optional(),
+  MAX_UPLOAD_MB: z.coerce.number().positive().default(10),
 });
 
-const parsed = envSchema.safeParse(process.env);
+const parsed = envSchema
+  .refine(
+    (e) =>
+      e.STORAGE_DRIVER !== "s3" || (e.S3_BUCKET && e.S3_ACCESS_KEY_ID && e.S3_SECRET_ACCESS_KEY),
+    {
+      path: ["S3_BUCKET"],
+      message:
+        "S3_BUCKET, S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY are required when STORAGE_DRIVER=s3",
+    },
+  )
+  .safeParse(process.env);
 
 if (!parsed.success) {
   console.error("Invalid environment configuration:");
@@ -77,6 +97,18 @@ const config = Object.freeze({
     refreshTtlMs: env.REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000,
     maxFailedLogins: env.MAX_FAILED_LOGINS,
     lockoutMs: env.LOCKOUT_MINUTES * 60 * 1000,
+  },
+  storage: {
+    driver: env.STORAGE_DRIVER,
+    localDir: env.STORAGE_LOCAL_DIR,
+    s3: {
+      endpoint: env.S3_ENDPOINT || undefined,
+      region: env.S3_REGION,
+      bucket: env.S3_BUCKET,
+      accessKeyId: env.S3_ACCESS_KEY_ID,
+      secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+    },
+    maxUploadBytes: env.MAX_UPLOAD_MB * 1024 * 1024,
   },
   mail: {
     host: env.SMTP_HOST,

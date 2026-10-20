@@ -42,7 +42,7 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 Client answers recorded in `01-requirements-analysis.md` §5 (plots only, decimal/sqft, image
 layouts, holds with day limit + auto-release, sold on registration, single owner).
 
-- ☐ 2.1 File service: upload (images/PDF), storage driver (local disk in dev, S3-compatible / Cloudflare R2 for hosted), access-checked download
+- ☑ 2.1 File service: upload (images/PDF), storage driver (local disk in dev, S3-compatible / Cloudflare R2 for hosted), access-checked download
 - ☐ 2.2 Schema: project, block, road, plot, plot hold / status / price history, customer, nominee
 - ☐ 2.3 Projects, blocks, roads: APIs + screens (project detail with layout image upload)
 - ☐ 2.4 Plots: API + screens, bulk import from Excel/CSV, price history

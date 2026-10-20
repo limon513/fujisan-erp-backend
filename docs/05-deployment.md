@@ -41,6 +41,19 @@ Notes:
 - `TRUST_PROXY=2` (Vercel + Render). After the first login, check _My login history_ shows your
   real public IP; if it shows a Vercel/Render address, adjust `TRUST_PROXY`.
 
+### File storage (Cloudflare R2)
+
+Uploaded files (plot layout images, documents) can't live on Render's disk — it's wiped on every
+deploy. Use a private R2 bucket (free tier: 10 GB):
+
+1. Cloudflare dashboard → R2 → **Create bucket** (e.g. `fujisan-erp-demo`), keep it private.
+2. R2 → **Manage API tokens** → create a token with _Object Read & Write_ on that bucket.
+3. In Render set `STORAGE_DRIVER=s3`, `S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com`,
+   `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` (`S3_REGION` stays `auto`).
+
+Files are always served through the API with short-lived signed links, so the bucket never needs
+public access.
+
 ## 3. Vercel (frontend)
 
 1. **Add New → Project** → import `fujisan-erp-frontend` (framework auto-detected: Next.js).
