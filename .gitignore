@@ -7,5 +7,5 @@ coverage
 logs
 *.log
 .DS_Store
-storage
-.test-storage
+/storage/
+/.test-storage/
