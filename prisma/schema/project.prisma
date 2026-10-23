@@ -37,13 +37,14 @@ model Project {
   updatedById          String?       @db.Uuid
   deletedAt            DateTime?     @db.Timestamptz(3)
 
-  branch          Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  projectManager  Employee? @relation("ProjectManager", fields: [projectManagerId], references: [id], onDelete: SetNull)
-  layoutFile      File?     @relation("ProjectLayout", fields: [layoutFileId], references: [id], onDelete: SetNull)
+  branch          Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  projectManager  Employee?   @relation("ProjectManager", fields: [projectManagerId], references: [id], onDelete: SetNull)
+  layoutFile      File?       @relation("ProjectLayout", fields: [layoutFileId], references: [id], onDelete: SetNull)
   blocks          Block[]
   roads           Road[]
   plots           Plot[]
-  interestedLeads Lead[]    @relation("LeadPreferredProject")
+  interestedLeads Lead[]      @relation("LeadPreferredProject")
+  siteVisits      SiteVisit[] @relation("SiteVisitProject")
 }
 
 model Block {

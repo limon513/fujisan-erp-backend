@@ -191,7 +191,9 @@ erDiagram
 - `LeadSource` (code ✱ generated from the name: FACEBOOK, WALK_IN…; name ✱, isActive, sortOrder — seeded from the client file, editable), `Campaign` (name, sourceId, budget, start/end (CHECK in validation), externalId ✱ for FB, notes, isActive, soft delete).
 - `Lead` (built in 3.1a): leadCode ✱ (LD-000001), fullName, mobile (normalized), altMobile, email, location, profession, budgetMin/Max (CHECK min ≤ max), preferredProjectId, propertyType, sourceId, campaignId, externalRef ✱ (FB lead id), status (pipeline enum; CHECK LOST ⇒ lostReason, CONVERTED ⇒ convertedCustomerId), notes, nextFollowUpAt, lastActivityAt, duplicateOfId (accepted duplicate), convertedCustomerId, convertedAt, ownerId (assigned employee; null = pool) + teamId/departmentId/branchId stamped on (re)assignment, assignedAt — idx(mobile), idx(email), idx(ownerId, status), idx(nextFollowUpAt).
 - `LeadActivity` (timeline, append-only: CREATED, NOTE, CALL, SMS, WHATSAPP, EMAIL, MEETING, STATUS_CHANGE, ASSIGNMENT, CONVERTED; from/to status, data JSON).
-- Planned for 3.1b/c: `FollowUp` (dueAt, type, outcome, doneAt), `SiteVisit` (projectId, scheduledAt, visitedAt, transport, feedback, unitsShown), `LeadAssignmentRule` (type: ROUND_ROBIN/TEAM/PROJECT/LOCATION, config JSON, priority, pointer for round robin).
+- `FollowUp` (3.1b): leadId, type (CALL, WHATSAPP, SMS, EMAIL, MEETING), dueAt, purpose, status (PENDING, DONE, CANCELLED; CHECK DONE ⇒ doneAt), outcome, doneAt/doneById, cancelReason, reminderSentAt, owner + org stamp (scope; follows the lead on reassignment). `Lead.nextFollowUpAt` = earliest PENDING dueAt.
+- `SiteVisit` (3.1b): leadId, projectId, scheduledAt, transport (OFFICE_CAR, OWN, OTHER), pickupPoint, visitors (1–50), note, status (SCHEDULED, VISITED, NO_SHOW, CANCELLED; CHECK VISITED ⇒ visitedAt), interest (HOT, WARM, COLD), plotsShown, feedback, cancelReason, reminderSentAt, owner + org stamp. Booking a visit moves the lead forward to SITE_VISIT; a lost/deleted lead cancels its open follow-ups and visits.
+- Planned for 3.1c: `LeadAssignmentRule` (type: ROUND_ROBIN/TEAM/PROJECT/LOCATION, config JSON, priority, pointer for round robin).
 
 **Booking**
 

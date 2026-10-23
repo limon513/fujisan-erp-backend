@@ -182,6 +182,8 @@ model Employee {
   plotHoldRequests PlotHold[]   @relation("PlotHoldRequests")
   customersOwned   Customer[]   @relation("CustomerOwner")
   leadsOwned       Lead[]       @relation("LeadOwner")
+  followUpsOwned   FollowUp[]   @relation("FollowUpOwner")
+  siteVisitsOwned  SiteVisit[]  @relation("SiteVisitOwner")
 
   @@index([branchId])
   @@index([departmentId])

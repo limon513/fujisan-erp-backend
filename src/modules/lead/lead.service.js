@@ -4,13 +4,21 @@ import { nextCode } from "#core/numbering/sequence.js";
 import { assertInScope, buildScopeWhere } from "#core/rbac/scope.js";
 import { buildListArgs, paginationMeta } from "#core/utils/listQuery.js";
 import {
-  CONTACT_ACTIVITIES,
   LEAD_SEQUENCE,
   leadDetailSelect,
   leadListSelect,
   OPEN_STATUSES,
   searchableFields,
 } from "./lead.constant.js";
+import {
+  cancelOpenWork,
+  leadStamp,
+  logActivity,
+  markContacted,
+  moveOpenWork,
+  notifyEmployee,
+  refreshNextFollowUp,
+} from "./lead.workflow.js";
 
 const invalid = (path, message) => AppError.unprocessable(message, [{ path, message }]);
 
@@ -178,31 +186,14 @@ async function assertReferences({ sourceId, campaignId, preferredProjectId }) {
 
 // ---- Activities and notifications -----------------------------------------------------------
 
-async function logActivity(tx, leadId, actor, activity) {
-  await tx.leadActivity.create({
-    data: { leadId, createdById: actor?.userId ?? null, ...activity },
-  });
-  await tx.lead.update({ where: { id: leadId }, data: { lastActivityAt: new Date() } });
-}
-
 /** Tells the newly assigned employee (unless they assigned it to themselves). */
-async function notifyOwner(tx, actor, lead) {
-  if (!lead.ownerId || lead.ownerId === actor.employeeId) return;
-  const users = await tx.user.findMany({
-    where: { employeeId: lead.ownerId, status: "ACTIVE", deletedAt: null },
-    select: { id: true },
+const notifyOwner = (tx, actor, lead) =>
+  notifyEmployee(tx, actor, lead.ownerId, {
+    type: "LEAD_ASSIGNED",
+    title: `New lead: ${lead.fullName}`,
+    body: lead.leadCode,
+    link: `/crm/leads/${lead.id}`,
   });
-  if (!users.length) return;
-  await tx.notification.createMany({
-    data: users.map((user) => ({
-      userId: user.id,
-      type: "LEAD_ASSIGNED",
-      title: `New lead: ${lead.fullName}`,
-      body: lead.leadCode,
-      link: `/crm/leads/${lead.id}`,
-    })),
-  });
-}
 
 const userName = (user) => user?.employee?.fullName ?? user?.username ?? null;
 
@@ -218,6 +209,25 @@ const toDetailDto = ({ _count, ...lead }, activities) => ({
 // ---- Queries --------------------------------------------------------------------------------
 
 const NULLS_LAST = ["nextFollowUpAt", "lastActivityAt"];
+
+const ownerName = { select: { id: true, fullName: true } };
+const openFollowUpSelect = {
+  id: true,
+  type: true,
+  dueAt: true,
+  purpose: true,
+  owner: ownerName,
+};
+const openVisitSelect = {
+  id: true,
+  scheduledAt: true,
+  transport: true,
+  pickupPoint: true,
+  visitors: true,
+  note: true,
+  project: { select: { id: true, name: true } },
+  owner: ownerName,
+};
 
 const list = async (access, query) => {
   const { skip, take, orderBy, searchWhere } = buildListArgs(query, searchableFields);
@@ -256,6 +266,18 @@ const list = async (access, query) => {
 
 const getById = async (access, id) => {
   const lead = await findLead(access, id);
+  const [followUps, siteVisits] = await Promise.all([
+    prisma.followUp.findMany({
+      where: { leadId: id, status: "PENDING" },
+      orderBy: { dueAt: "asc" },
+      select: openFollowUpSelect,
+    }),
+    prisma.siteVisit.findMany({
+      where: { leadId: id, status: "SCHEDULED" },
+      orderBy: { scheduledAt: "asc" },
+      select: openVisitSelect,
+    }),
+  ]);
   const activities = await prisma.leadActivity.findMany({
     where: { leadId: id },
     orderBy: { createdAt: "desc" },
@@ -271,7 +293,7 @@ const getById = async (access, id) => {
       createdBy: { select: { id: true, username: true, employee: { select: { fullName: true } } } },
     },
   });
-  return toDetailDto(lead, activities);
+  return { ...toDetailDto(lead, activities), followUps, siteVisits };
 };
 
 const checkDuplicates = (query) => findDuplicates(query);
@@ -297,7 +319,10 @@ const assignees = async (access) =>
 
 // ---- Commands -------------------------------------------------------------------------------
 
-const create = async (access, { confirmDuplicate, ownerId, unassigned, ...data }) => {
+const create = async (
+  access,
+  { confirmDuplicate, ownerId, unassigned, nextFollowUpAt, ...data },
+) => {
   const { actor } = access;
   await assertReferences(data);
   const original = await checkDuplicate(data, confirmDuplicate);
@@ -318,6 +343,19 @@ const create = async (access, { confirmDuplicate, ownerId, unassigned, ...data }
       body: original ? `Added again although ${describe(original)} exists` : null,
       toStatus: created.status,
     });
+    if (nextFollowUpAt) {
+      await tx.followUp.create({
+        data: {
+          leadId: created.id,
+          type: "CALL",
+          dueAt: nextFollowUpAt,
+          purpose: "First follow-up",
+          ...leadStamp(created),
+          createdById: actor.userId,
+        },
+      });
+      await refreshNextFollowUp(tx, created.id);
+    }
     await notifyOwner(tx, actor, created);
     return created;
   });
@@ -362,9 +400,12 @@ const update = async (access, id, { confirmDuplicate, ...data }) => {
 
 const remove = async (access, id) => {
   await findLead(access, id, { id: true });
-  await prisma.lead.update({
-    where: { id },
-    data: { deletedAt: new Date(), externalRef: null, updatedById: access.actor.userId },
+  await prisma.$transaction(async (tx) => {
+    await cancelOpenWork(tx, id, "Lead deleted");
+    await tx.lead.update({
+      where: { id },
+      data: { deletedAt: new Date(), externalRef: null, updatedById: access.actor.userId },
+    });
   });
 };
 
@@ -389,24 +430,17 @@ const changeStatus = async (access, id, { status, lostReason, note }) => {
       toStatus: status,
       body: [status === "LOST" ? lostReason : null, note].filter(Boolean).join(" — ") || null,
     });
+    if (status === "LOST") await cancelOpenWork(tx, id, "Lead lost");
   });
   return getById(access, id);
 };
 
 /** Logs a call, note, message or meeting. A first contact moves a NEW lead to CONTACTED. */
 const addActivity = async (access, id, { type, body }) => {
-  const lead = await findLead(access, id, { id: true, status: true });
+  await findLead(access, id, { id: true });
   await prisma.$transaction(async (tx) => {
     await logActivity(tx, id, access.actor, { type, body });
-    if (lead.status === "NEW" && CONTACT_ACTIVITIES.includes(type)) {
-      await tx.lead.update({ where: { id }, data: { status: "CONTACTED" } });
-      await logActivity(tx, id, null, {
-        type: "STATUS_CHANGE",
-        fromStatus: "NEW",
-        toStatus: "CONTACTED",
-        body: "First contact logged",
-      });
-    }
+    await markContacted(tx, id, type);
   });
   return getById(access, id);
 };
@@ -444,6 +478,7 @@ const assign = async (access, id, { ownerId, note }) => {
       body: note ?? null,
       data: { from: lead.owner?.fullName ?? null, to: ownerName },
     });
+    await moveOpenWork(tx, id, leadStamp(updated));
     await notifyOwner(tx, actor, updated);
   });
   return getById({ actor, scope: "ALL" }, id);

@@ -23,6 +23,42 @@ enum LeadActivityType {
   STATUS_CHANGE
   ASSIGNMENT
   CONVERTED
+  FOLLOW_UP_SCHEDULED
+  SITE_VISIT_SCHEDULED
+  SITE_VISIT
+}
+
+enum FollowUpType {
+  CALL
+  WHATSAPP
+  SMS
+  EMAIL
+  MEETING
+}
+
+enum FollowUpStatus {
+  PENDING
+  DONE
+  CANCELLED
+}
+
+enum SiteVisitStatus {
+  SCHEDULED
+  VISITED
+  NO_SHOW
+  CANCELLED
+}
+
+enum SiteVisitTransport {
+  OFFICE_CAR
+  OWN
+  OTHER
+}
+
+enum InterestLevel {
+  HOT
+  WARM
+  COLD
 }
 
 /// Facebook, Website, Walk-in, Referral, ... (editable list; `code` identifies seeded ones)
@@ -110,6 +146,8 @@ model Lead {
   duplicates        Lead[]         @relation("LeadDuplicates")
   convertedCustomer Customer?      @relation("LeadConversions", fields: [convertedCustomerId], references: [id], onDelete: SetNull)
   activities        LeadActivity[]
+  followUps         FollowUp[]
+  siteVisits        SiteVisit[]
 
   @@index([mobile])
   @@index([email])
@@ -136,4 +174,77 @@ model LeadActivity {
   createdBy User? @relation("LeadActivities", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@index([leadId, createdAt])
+}
+
+/// A planned contact with a lead. The lead's nextFollowUpAt = its earliest PENDING follow-up.
+model FollowUp {
+  id             String         @id @default(uuid(7)) @db.Uuid
+  leadId         String         @db.Uuid
+  type           FollowUpType
+  dueAt          DateTime       @db.Timestamptz(3)
+  /// what to talk about
+  purpose        String?
+  status         FollowUpStatus @default(PENDING)
+  outcome        String?
+  doneAt         DateTime?      @db.Timestamptz(3)
+  doneById       String?        @db.Uuid
+  cancelReason   String?
+  reminderSentAt DateTime?      @db.Timestamptz(3)
+  /// data scope: the employee who should do it (+ their org), like a lead
+  ownerId        String?        @db.Uuid
+  teamId         String?        @db.Uuid
+  departmentId   String?        @db.Uuid
+  branchId       String?        @db.Uuid
+  createdAt      DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime       @updatedAt @db.Timestamptz(3)
+  createdById    String?        @db.Uuid
+  updatedById    String?        @db.Uuid
+
+  lead   Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  owner  Employee? @relation("FollowUpOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  doneBy User?     @relation("FollowUpsDone", fields: [doneById], references: [id], onDelete: SetNull)
+
+  @@index([leadId, status])
+  @@index([ownerId, status, dueAt])
+  @@index([status, dueAt])
+}
+
+model SiteVisit {
+  id             String             @id @default(uuid(7)) @db.Uuid
+  leadId         String             @db.Uuid
+  projectId      String             @db.Uuid
+  scheduledAt    DateTime           @db.Timestamptz(3)
+  transport      SiteVisitTransport @default(OFFICE_CAR)
+  pickupPoint    String?
+  /// how many people are coming
+  visitors       Int                @default(1)
+  note           String?
+  status         SiteVisitStatus    @default(SCHEDULED)
+  visitedAt      DateTime?          @db.Timestamptz(3)
+  interest       InterestLevel?
+  /// plot codes shown, e.g. "A-5, A-7"
+  plotsShown     String?
+  feedback       String?
+  cancelReason   String?
+  reminderSentAt DateTime?          @db.Timestamptz(3)
+  /// data scope: the employee going with the visitor (+ their org)
+  ownerId        String?            @db.Uuid
+  teamId         String?            @db.Uuid
+  departmentId   String?            @db.Uuid
+  branchId       String?            @db.Uuid
+  completedById  String?            @db.Uuid
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime           @updatedAt @db.Timestamptz(3)
+  createdById    String?            @db.Uuid
+  updatedById    String?            @db.Uuid
+
+  lead        Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  project     Project   @relation("SiteVisitProject", fields: [projectId], references: [id], onDelete: Restrict)
+  owner       Employee? @relation("SiteVisitOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  completedBy User?     @relation("SiteVisitsCompleted", fields: [completedById], references: [id], onDelete: SetNull)
+
+  @@index([leadId, status])
+  @@index([ownerId, status, scheduledAt])
+  @@index([status, scheduledAt])
+  @@index([projectId, scheduledAt])
 }

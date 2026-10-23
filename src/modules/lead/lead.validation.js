@@ -29,7 +29,6 @@ const fields = {
   sourceId: z.uuid({ error: "Choose a source" }),
   campaignId: optionalId(),
   notes: optionalText(2000),
-  nextFollowUpAt: blankToNull(z.iso.datetime({ offset: true }).transform((v) => new Date(v))),
 };
 
 const budgetInOrder = (body) =>
@@ -44,6 +43,11 @@ const create = z
         "Assigned employee. Default: you. Assigning someone else needs `lead.assign`; leave empty with `unassigned: true` to put it in the pool.",
     }),
     unassigned: z.boolean().optional(),
+    nextFollowUpAt: blankToNull(
+      z.iso.datetime({ offset: true }).transform((v) => new Date(v)),
+    ).meta({
+      description: "Schedules a first follow-up call. Later ones: POST /follow-ups",
+    }),
     confirmDuplicate: z
       .boolean()
       .optional()

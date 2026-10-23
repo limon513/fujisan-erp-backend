@@ -1,6 +1,8 @@
 import config from "#config/index.js";
 import logger from "#core/utils/logger.js";
+import { FollowUpService } from "#modules/follow-up/follow-up.service.js";
 import { PlotHoldService } from "#modules/plot/plot.hold.service.js";
+import { SiteVisitService } from "#modules/site-visit/site-visit.service.js";
 
 /**
  * Recurring background jobs (single process). Each job must be idempotent and safe to run on
@@ -9,6 +11,8 @@ import { PlotHoldService } from "#modules/plot/plot.hold.service.js";
  */
 const JOBS = [
   { name: "plot-hold-expiry", everyMs: 60_000, run: () => PlotHoldService.expireDueHolds() },
+  { name: "follow-up-reminders", everyMs: 60_000, run: () => FollowUpService.sendReminders() },
+  { name: "site-visit-reminders", everyMs: 60_000, run: () => SiteVisitService.sendReminders() },
 ];
 
 export function startJobs() {
