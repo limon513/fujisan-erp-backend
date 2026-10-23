@@ -50,14 +50,17 @@ model User {
   updatedById          String?    @db.Uuid
   deletedAt            DateTime?  @db.Timestamptz(3)
 
-  employee          Employee?      @relation(fields: [employeeId], references: [id], onDelete: SetNull)
-  role              Role           @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  employee          Employee?         @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  role              Role              @relation(fields: [roleId], references: [id], onDelete: Restrict)
   sessions          Session[]
   loginHistory      LoginHistory[]
   otpTokens         OtpToken[]
   notifications     Notification[]
-  plotHoldsPlaced   PlotHold[]     @relation("PlotHoldsPlaced")
-  plotHoldsReleased PlotHold[]     @relation("PlotHoldsReleased")
+  plotHoldsPlaced   PlotHold[]        @relation("PlotHoldsPlaced")
+  plotHoldsReleased PlotHold[]        @relation("PlotHoldsReleased")
+  approvalSteps     ApprovalStep[]    @relation("ApprovalStepUser")
+  approvalRequests  ApprovalRequest[] @relation("ApprovalRequests")
+  approvalActions   ApprovalAction[]  @relation("ApprovalActions")
 
   @@index([roleId])
 }
@@ -79,8 +82,9 @@ model Role {
   createdById        String?  @db.Uuid
   updatedById        String?  @db.Uuid
 
-  users       User[]
-  permissions RolePermission[]
+  users         User[]
+  permissions   RolePermission[]
+  approvalSteps ApprovalStep[]
 }
 
 /// Permission catalog. Synced from module manifests by the seed — not edited by users.

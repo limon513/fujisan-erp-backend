@@ -193,16 +193,24 @@ restore tested.
 
 ## 6. Cross-cutting engines (built once, used by many modules)
 
-**Approval engine** (`core/approval`)
+**Approval engine** (`core/approval`, API in `modules/approval`)
 
 - `ApprovalWorkflow` per process (DISCOUNT, BOOKING, CANCELLATION, REFUND, PURCHASE, LEAVE, PAYROLL…)
-  with ordered steps. Step approver can be: a role, the requester's team leader, reporting manager,
-  department head, or a specific user. Each step can have an amount/percent limit.
-- For discounts, steps are walked only until a step's limit covers the requested value
-  (3% request with TL ≤ 2%, SM ≤ 5% → TL then SM; Director not needed).
-- Modules register handlers: `onApproved(request)`, `onRejected(request)` — e.g. booking module
-  confirms the booking when its approval finishes.
-- Every action is stored (`ApprovalAction`) and notifies the next approver.
+  with ordered steps. Business modules declare their processes in the manifest
+  (`approvalWorkflows: [{ code, name }]`); the seed creates them with the client's default chain
+  (`approvalChains` in `prisma/seed/clients/<client>.js`). Admins edit chains in the app.
+- Step approver: a role (optionally only in the requester's branch), the requester's team leader,
+  reporting manager, department head, or a named user. Resolved from the org chart when the step starts.
+- A step with an amount/percent limit ends the chain when the request fits it
+  (3% with TL ≤ 2%, SM ≤ 5%, Director → TL then SM). Steps without limits are always needed.
+- A step nobody can approve is skipped; with nobody left, the request escalates to the Super Admins.
+  A step whose only approvers already approved counts as approved. Nobody approves their own request.
+- The chain is frozen into the request at submission; editing a chain doesn't change requests in flight.
+- Modules call `submitApproval(tx, actor, …)` in their own transaction and register
+  `onApproved / onRejected / onCancelled` (`core/approval/handlers.js`). Handlers run in the decision's
+  transaction, so a handler error rolls the decision back.
+- Every action is stored (`ApprovalAction`), audited on the record, and notifies the next approvers
+  and, at the end, the requester. One pending request per record (partial unique index).
 
 **Numbering** (`core/numbering`) — gap-free, concurrency-safe document numbers via a `Sequence`
 table updated with `UPDATE … RETURNING` inside the transaction. Prefix/pattern configurable per client.

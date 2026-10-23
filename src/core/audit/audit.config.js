@@ -36,6 +36,8 @@ export const AUDITED_MODELS = {
   Plot: { label: "code", ignore: ["statusChangedAt", "mapShape", "mapLabel"] },
   Customer: { label: "fullName" },
   CustomerNominee: { label: "fullName" },
+  // Chain edits are logged as one APPROVAL_CHAIN_CHANGED event; requests have their own history
+  ApprovalWorkflow: { label: "name", ignore: ["updatedAt"] },
 };
 
 /** Ignored on every model. */

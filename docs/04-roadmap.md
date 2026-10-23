@@ -53,7 +53,7 @@ layouts, holds with day limit + auto-release, sold on registration, single owner
 
 ## Phase 3 — Revenue engine
 
-- ☐ 3.0 Approval engine (workflows, steps, requests, my-approvals inbox) — moved from Phase 2
+- ◐ 3.0 Approval engine (workflows, steps, requests, my-approvals inbox) — API ☑, screens ☐
 
 - ☐ 3.1 CRM: leads, sources, campaigns, duplicate check, assignment rules, activities, follow-ups, site visits, pipeline (kanban) view
 - ☐ 3.2 Notifications (in-app) + follow-up reminders

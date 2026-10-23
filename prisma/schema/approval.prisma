@@ -1,0 +1,131 @@
+// Approval engine: one configurable chain per process (discount, booking, cancellation, ...).
+
+enum ApproverType {
+  /// every active user with the role (optionally only in the requester's branch)
+  ROLE
+  /// the leader of the requester's team
+  TEAM_LEADER
+  /// the requester's reporting manager
+  REPORTING_MANAGER
+  /// the head of the requester's department
+  DEPARTMENT_HEAD
+  /// one named user
+  USER
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApprovalDecision {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+  /// step passed over automatically (nobody to ask, or the same person already approved)
+  SKIPPED
+}
+
+/// One per process. Business modules declare their workflows in their manifest; the seed creates them.
+model ApprovalWorkflow {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  /// e.g. DISCOUNT, BOOKING, CANCELLATION
+  code        String   @unique
+  name        String
+  description String?
+  /// module that owns the process
+  module      String
+  /// when off, requests are approved immediately
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  updatedById String?  @db.Uuid
+
+  steps    ApprovalStep[]
+  requests ApprovalRequest[]
+}
+
+/// Ordered approver levels. A step with limits is the last one needed when the request fits them.
+model ApprovalStep {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  workflowId     String       @db.Uuid
+  stepOrder      Int
+  name           String
+  approverType   ApproverType
+  approverRoleId String?      @db.Uuid
+  approverUserId String?      @db.Uuid
+  /// ROLE approvers: only those in the requester's branch
+  sameBranch     Boolean      @default(false)
+  maxAmount      Decimal?     @db.Decimal(14, 2)
+  maxPercent     Decimal?     @db.Decimal(5, 2)
+  createdAt      DateTime     @default(now()) @db.Timestamptz(3)
+
+  workflow     ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  approverRole Role?            @relation(fields: [approverRoleId], references: [id], onDelete: Restrict)
+  approverUser User?            @relation("ApprovalStepUser", fields: [approverUserId], references: [id], onDelete: Restrict)
+
+  @@unique([workflowId, stepOrder])
+}
+
+model ApprovalRequest {
+  id                  String         @id @default(uuid(7)) @db.Uuid
+  /// APR-000001
+  requestNo           String         @unique
+  workflowId          String         @db.Uuid
+  /// what is being approved, e.g. "Booking" + its id
+  entityType          String
+  entityId            String
+  title               String
+  summary             String?
+  /// frontend path of the record, e.g. /bookings/<id>
+  link                String?
+  amount              Decimal?       @db.Decimal(14, 2)
+  percent             Decimal?       @db.Decimal(5, 2)
+  /// the record as submitted, shown to approvers
+  snapshot            Json?
+  /// the chain at submission time, so later edits don't change requests in flight
+  steps               Json
+  status              ApprovalStatus @default(PENDING)
+  currentStepOrder    Int?
+  /// last step needed by the amount/percent limits
+  finalStepOrder      Int
+  /// users who can act on the current step
+  currentApproverIds  String[]       @db.Uuid
+  requestedById       String         @db.Uuid
+  // Requester's org stamp, for data scope
+  requesterEmployeeId String?        @db.Uuid
+  teamId              String?        @db.Uuid
+  departmentId        String?        @db.Uuid
+  branchId            String?        @db.Uuid
+  completedAt         DateTime?      @db.Timestamptz(3)
+  createdAt           DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime       @updatedAt @db.Timestamptz(3)
+
+  workflow    ApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Restrict)
+  requestedBy User             @relation("ApprovalRequests", fields: [requestedById], references: [id], onDelete: Restrict)
+  actions     ApprovalAction[]
+
+  @@index([status, createdAt])
+  @@index([entityType, entityId])
+  @@index([requestedById])
+  @@index([currentApproverIds], type: Gin)
+}
+
+model ApprovalAction {
+  id        String           @id @default(uuid(7)) @db.Uuid
+  requestId String           @db.Uuid
+  stepOrder Int?
+  /// null for automatic (system) actions
+  actorId   String?          @db.Uuid
+  decision  ApprovalDecision
+  comment   String?
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+
+  request ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  actor   User?           @relation("ApprovalActions", fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([requestId, createdAt])
+}

@@ -12,8 +12,10 @@ const modulesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
  * Discovers every `src/modules/<name>/<name>.module.js` manifest (enabled or not).
  *
  * Manifest shape:
- *   { name, basePath, router, permissions?: Permission[], dependsOn?: string[], core?: boolean }
- * (`permissions` is built with `definePermissions()` from #core/rbac/permissions.js)
+ *   { name, basePath, router, permissions?: Permission[], dependsOn?: string[], core?: boolean,
+ *     approvalWorkflows?: { code, name, description? }[] }
+ * (`permissions` is built with `definePermissions()` from #core/rbac/permissions.js;
+ *  `approvalWorkflows` are created by the seed, see prisma/seed/core/approvals.js)
  */
 export async function discoverModules() {
   const entries = await readdir(modulesDir, { withFileTypes: true });

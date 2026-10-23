@@ -11,6 +11,7 @@ import { generatePassword, hashPassword } from "#core/utils/password.js";
 import { discoverModules } from "../../src/routes/index.js";
 import { systemRoles } from "./core/roles.js";
 import { buildCatalog, syncAccessControl } from "./core/accessControl.js";
+import { syncApprovalWorkflows } from "./core/approvals.js";
 
 const clientName = process.env.SEED_CLIENT || "fujisan";
 const { default: client } = await import(`./clients/${clientName}.js`);
@@ -70,7 +71,8 @@ async function main() {
   await seedCompany();
   await seedOrganization();
 
-  const catalog = buildCatalog(await discoverModules());
+  const modules = await discoverModules();
+  const catalog = buildCatalog(modules);
   const summary = await prisma.$transaction((tx) =>
     syncAccessControl(tx, { catalog, roles: systemRoles }),
   );
@@ -79,6 +81,11 @@ async function main() {
       `+${summary.permissionsCreated} / -${summary.permissionsRemoved} permissions, ` +
       `+${summary.rolesCreated} roles, +${summary.grantsCreated} grants`,
   );
+
+  const approvals = await prisma.$transaction((tx) =>
+    syncApprovalWorkflows(tx, { modules, chains: client.approvalChains }),
+  );
+  console.log(`  approval workflows: +${approvals.created}`);
 
   await seedSuperAdmin();
   console.log("Seed complete");

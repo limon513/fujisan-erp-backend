@@ -118,6 +118,10 @@ const remove = async (actor, id) => {
       `This role is assigned to ${role._count.users} user(s). Reassign them first.`,
     );
   }
+  const chains = await prisma.approvalStep.count({ where: { approverRoleId: id } });
+  if (chains > 0) {
+    throw AppError.conflict("This role approves in an approval chain. Change the chain first.");
+  }
   await prisma.role.delete({ where: { id } });
 };
 

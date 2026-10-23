@@ -20,4 +20,17 @@ export default {
     { code: "LEGAL", name: "Legal" },
     { code: "IT", name: "IT" },
   ],
+  /**
+   * Default approval chains, applied when the module that declares the process is first enabled.
+   * Editable later in the app. DISCOUNT limits are an example until the client confirms them
+   * (docs/01-requirements-analysis.md §5, question 7).
+   */
+  approvalChains: {
+    DISCOUNT: [
+      { name: "Team Leader", approverType: "TEAM_LEADER", maxPercent: 2 },
+      { name: "Sales Manager", approverType: "ROLE", role: "sales-manager", maxPercent: 5 },
+      { name: "Director", approverType: "ROLE", role: "director" },
+    ],
+    BOOKING: [{ name: "Sales Manager", approverType: "ROLE", role: "sales-manager" }],
+  },
 };

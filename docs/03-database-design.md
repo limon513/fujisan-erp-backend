@@ -154,14 +154,14 @@ CREATE UNIQUE INDEX plot_one_active_booking ON "Booking"("plotId")
 **Hold expiry**: a background job (every few minutes) releases ACTIVE holds whose `expiresAt` has
 passed → plot AVAILABLE, hold EXPIRED, status history written, the requester notified.
 
-### Approval engine (built in Phase 2, used from Phase 3)
+### Approval engine (built in 3.0)
 
-| Table              | Key fields                                                                                                                                                                        |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ApprovalWorkflow` | code ✱ (DISCOUNT, BOOKING, CANCELLATION, REFUND, PURCHASE, LEAVE, PAYROLL), name, isActive                                                                                        |
-| `ApprovalStep`     | workflowId, stepOrder, name, approverType (ROLE, TEAM_LEADER, REPORTING_MANAGER, DEPARTMENT_HEAD, USER), approverRoleId?, approverUserId?, maxAmount?, maxPercent?                |
-| `ApprovalRequest`  | workflowId, entityType, entityId, requestedById, amount?, percent?, snapshot JSON, status (PENDING, APPROVED, REJECTED, CANCELLED), currentStepOrder, finalStepOrder, completedAt |
-| `ApprovalAction`   | requestId, stepOrder, actorId, decision (APPROVED, REJECTED, RETURNED), comment, createdAt                                                                                        |
+| Table              | Key fields                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ApprovalWorkflow` | code ✱ (DISCOUNT, BOOKING, CANCELLATION, REFUND, PURCHASE, LEAVE, PAYROLL), name, description, module (owner), isActive (off = approved at once)                                                                                                                                                                                                                                                                                                       |
+| `ApprovalStep`     | workflowId, stepOrder (✱ per workflow), name, approverType (ROLE, TEAM_LEADER, REPORTING_MANAGER, DEPARTMENT_HEAD, USER), approverRoleId?, approverUserId? (CHECK: matches type), sameBranch, maxAmount?, maxPercent?                                                                                                                                                                                                                                  |
+| `ApprovalRequest`  | requestNo ✱ (APR-000001), workflowId, entityType, entityId, title, summary, link, requestedById, amount?, percent?, snapshot JSON, steps JSON (chain frozen at submission), status (PENDING, APPROVED, REJECTED, CANCELLED), currentStepOrder, finalStepOrder, currentApproverIds uuid[] (GIN, inbox), requester org stamp (employee/team/department/branch, for scope), completedAt — partial unique (workflowId, entityType, entityId) WHERE PENDING |
+| `ApprovalAction`   | requestId, stepOrder, actorId (null = automatic), decision (SUBMITTED, APPROVED, REJECTED, CANCELLED, SKIPPED), comment, createdAt                                                                                                                                                                                                                                                                                                                     |
 
 ---
 
