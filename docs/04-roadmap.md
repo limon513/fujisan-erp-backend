@@ -35,7 +35,7 @@ Legend: ☐ todo · ◐ in progress · ☑ done
 - ◐ 1.9 Frontend: login, forced password change, forgot/reset, token refresh, protected layout (proxy.js + AuthGate), permission-driven navigation, `<Can>`, FormField ☑ — shared DataTable ☐
 - ☑ 1.10 Frontend: org screens, user accounts, audit log viewer, roles + permission matrix, my profile (devices, sign-in history), company settings
 - ☐ 1.11 2FA (TOTP + backup codes), enforce per role
-- ☐ 1.12 Dashboard shell with role-based widget slots
+- ☑ 1.12 Dashboard shell with role-based widget slots (done with 2.8: sections appear per permission)
 
 ## Phase 2 — Real-estate core
 
@@ -49,7 +49,7 @@ layouts, holds with day limit + auto-release, sold on registration, single owner
 - ☑ 2.5 Hold / release / block with history; auto-release job when the days run out
 - ☑ 2.6 Interactive plot map: draw plot shapes on the layout image (editor) + colour-coded viewer with plot details and actions
 - ☑ 2.7 Customers + nominees + documents, duplicate check by mobile/NID
-- ☐ 2.8 Dashboard: plot inventory widgets (available / hold / booked / sold per project)
+- ☑ 2.8 Dashboard: plot inventory widgets (available / hold / booked / sold per project), holds ending soon, my holds, customers
 
 ## Phase 3 — Revenue engine
 
