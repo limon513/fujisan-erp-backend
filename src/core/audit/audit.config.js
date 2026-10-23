@@ -36,6 +36,10 @@ export const AUDITED_MODELS = {
   Plot: { label: "code", ignore: ["statusChangedAt", "mapShape", "mapLabel"] },
   Customer: { label: "fullName" },
   CustomerNominee: { label: "fullName" },
+  LeadSource: { label: "name" },
+  Campaign: { label: "name" },
+  // Status / owner changes also land in the lead's own timeline
+  Lead: { label: "fullName", ignore: ["lastActivityAt", "assignedAt"] },
   // Chain edits are logged as one APPROVAL_CHAIN_CHANGED event; requests have their own history
   ApprovalWorkflow: { label: "name", ignore: ["updatedAt"] },
 };

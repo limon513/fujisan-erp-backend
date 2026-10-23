@@ -188,9 +188,10 @@ erDiagram
 
 **CRM**
 
-- `LeadSource` (FACEBOOK, WEBSITE, GOOGLE, PHONE, WHATSAPP, WALK_IN, REFERRAL, CAMPAIGN, EXISTING_CUSTOMER — editable list), `Campaign` (name, sourceId, budget, start/end, externalId for FB).
-- `Lead`: leadCode, fullName, mobile (normalized), email, location, profession, budgetMin/Max, preferredProjectId, propertyType, sourceId, campaignId, externalRef (FB lead id ✱), status (pipeline enum), lostReason, nextFollowUpAt, ownerId (assigned employee), teamId, departmentId, branchId, convertedCustomerId, duplicateOfId — idx(mobile), idx(ownerId, status), idx(nextFollowUpAt).
-- `LeadActivity` (timeline: CALL, NOTE, SMS, WHATSAPP, STATUS_CHANGE, ASSIGNMENT), `FollowUp` (dueAt, type, outcome, doneAt), `SiteVisit` (projectId, scheduledAt, visitedAt, transport, feedback, unitsShown), `LeadAssignmentRule` (type: ROUND_ROBIN/TEAM/PROJECT/LOCATION, config JSON, priority, pointer for round robin).
+- `LeadSource` (code ✱ generated from the name: FACEBOOK, WALK_IN…; name ✱, isActive, sortOrder — seeded from the client file, editable), `Campaign` (name, sourceId, budget, start/end (CHECK in validation), externalId ✱ for FB, notes, isActive, soft delete).
+- `Lead` (built in 3.1a): leadCode ✱ (LD-000001), fullName, mobile (normalized), altMobile, email, location, profession, budgetMin/Max (CHECK min ≤ max), preferredProjectId, propertyType, sourceId, campaignId, externalRef ✱ (FB lead id), status (pipeline enum; CHECK LOST ⇒ lostReason, CONVERTED ⇒ convertedCustomerId), notes, nextFollowUpAt, lastActivityAt, duplicateOfId (accepted duplicate), convertedCustomerId, convertedAt, ownerId (assigned employee; null = pool) + teamId/departmentId/branchId stamped on (re)assignment, assignedAt — idx(mobile), idx(email), idx(ownerId, status), idx(nextFollowUpAt).
+- `LeadActivity` (timeline, append-only: CREATED, NOTE, CALL, SMS, WHATSAPP, EMAIL, MEETING, STATUS_CHANGE, ASSIGNMENT, CONVERTED; from/to status, data JSON).
+- Planned for 3.1b/c: `FollowUp` (dueAt, type, outcome, doneAt), `SiteVisit` (projectId, scheduledAt, visitedAt, transport, feedback, unitsShown), `LeadAssignmentRule` (type: ROUND_ROBIN/TEAM/PROJECT/LOCATION, config JSON, priority, pointer for round robin).
 
 **Booking**
 

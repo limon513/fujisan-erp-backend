@@ -1,0 +1,139 @@
+// CRM: lead sources, campaigns, leads and their activity timeline.
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  INTERESTED
+  FOLLOW_UP
+  SITE_VISIT
+  NEGOTIATION
+  BOOKING
+  CONVERTED
+  LOST
+}
+
+enum LeadActivityType {
+  CREATED
+  NOTE
+  CALL
+  SMS
+  WHATSAPP
+  EMAIL
+  MEETING
+  STATUS_CHANGE
+  ASSIGNMENT
+  CONVERTED
+}
+
+/// Facebook, Website, Walk-in, Referral, ... (editable list; `code` identifies seeded ones)
+model LeadSource {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  code        String   @unique
+  name        String   @unique
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  createdById String?  @db.Uuid
+  updatedById String?  @db.Uuid
+
+  campaigns Campaign[]
+  leads     Lead[]
+}
+
+model Campaign {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  name        String
+  sourceId    String?   @db.Uuid
+  budget      Decimal?  @db.Decimal(14, 2)
+  startDate   DateTime? @db.Date
+  endDate     DateTime? @db.Date
+  /// e.g. the Facebook campaign id, for lead-ad imports (Phase 5)
+  externalId  String?   @unique
+  notes       String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+  createdById String?   @db.Uuid
+  updatedById String?   @db.Uuid
+  deletedAt   DateTime? @db.Timestamptz(3)
+
+  source LeadSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  leads  Lead[]
+}
+
+model Lead {
+  id                  String     @id @default(uuid(7)) @db.Uuid
+  /// LD-000001
+  leadCode            String     @unique
+  fullName            String
+  /// normalized 8801XXXXXXXXX
+  mobile              String
+  altMobile           String?
+  email               String?
+  location            String?
+  profession          String?
+  budgetMin           Decimal?   @db.Decimal(14, 2)
+  budgetMax           Decimal?   @db.Decimal(14, 2)
+  preferredProjectId  String?    @db.Uuid
+  propertyType        String?
+  sourceId            String     @db.Uuid
+  campaignId          String?    @db.Uuid
+  /// id at the source (e.g. Facebook lead id), so imports never duplicate
+  externalRef         String?    @unique
+  status              LeadStatus @default(NEW)
+  lostReason          String?
+  notes               String?
+  nextFollowUpAt      DateTime?  @db.Timestamptz(3)
+  lastActivityAt      DateTime?  @db.Timestamptz(3)
+  /// another lead for the same person, accepted at creation
+  duplicateOfId       String?    @db.Uuid
+  convertedCustomerId String?    @db.Uuid
+  convertedAt         DateTime?  @db.Timestamptz(3)
+  /// data scope: assigned employee, stamped with their org on (re)assignment
+  ownerId             String?    @db.Uuid
+  teamId              String?    @db.Uuid
+  departmentId        String?    @db.Uuid
+  branchId            String?    @db.Uuid
+  assignedAt          DateTime?  @db.Timestamptz(3)
+  createdAt           DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime   @updatedAt @db.Timestamptz(3)
+  createdById         String?    @db.Uuid
+  updatedById         String?    @db.Uuid
+  deletedAt           DateTime?  @db.Timestamptz(3)
+
+  source            LeadSource     @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  campaign          Campaign?      @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  preferredProject  Project?       @relation("LeadPreferredProject", fields: [preferredProjectId], references: [id], onDelete: SetNull)
+  owner             Employee?      @relation("LeadOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  duplicateOf       Lead?          @relation("LeadDuplicates", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates        Lead[]         @relation("LeadDuplicates")
+  convertedCustomer Customer?      @relation("LeadConversions", fields: [convertedCustomerId], references: [id], onDelete: SetNull)
+  activities        LeadActivity[]
+
+  @@index([mobile])
+  @@index([email])
+  @@index([ownerId, status])
+  @@index([status, createdAt])
+  @@index([nextFollowUpAt])
+  @@index([branchId])
+}
+
+/// Timeline: calls, notes, status changes, assignments. Never edited.
+model LeadActivity {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  leadId      String           @db.Uuid
+  type        LeadActivityType
+  body        String?
+  fromStatus  LeadStatus?
+  toStatus    LeadStatus?
+  /// extra details, e.g. { fromOwner, toOwner } for an assignment
+  data        Json?
+  createdById String?          @db.Uuid
+  createdAt   DateTime         @default(now()) @db.Timestamptz(3)
+
+  lead      Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("LeadActivities", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([leadId, createdAt])
+}

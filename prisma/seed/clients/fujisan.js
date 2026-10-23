@@ -20,6 +20,18 @@ export default {
     { code: "LEGAL", name: "Legal" },
     { code: "IT", name: "IT" },
   ],
+  /** Lead sources (blueprint §5). Created once; renamed or switched off in the app. */
+  leadSources: [
+    "Facebook",
+    "Website",
+    "Google",
+    "Phone",
+    "WhatsApp",
+    "Walk-in",
+    "Referral",
+    "Campaign",
+    "Existing Customer",
+  ],
   /**
    * Default approval chains, applied when the module that declares the process is first enabled.
    * Editable later in the app. DISCOUNT limits are an example until the client confirms them

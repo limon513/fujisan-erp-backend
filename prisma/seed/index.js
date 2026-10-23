@@ -12,6 +12,7 @@ import { discoverModules } from "../../src/routes/index.js";
 import { systemRoles } from "./core/roles.js";
 import { buildCatalog, syncAccessControl } from "./core/accessControl.js";
 import { syncApprovalWorkflows } from "./core/approvals.js";
+import { toCode } from "../../src/modules/lead-source/lead-source.constant.js";
 
 const clientName = process.env.SEED_CLIENT || "fujisan";
 const { default: client } = await import(`./clients/${clientName}.js`);
@@ -34,6 +35,18 @@ async function seedOrganization() {
     const exists = await prisma.department.findUnique({ where: { code: department.code } });
     if (!exists) await prisma.department.create({ data: department });
   }
+}
+
+/** Creates missing lead sources by code (FACEBOOK, WALK_IN, ...); app edits are kept. */
+async function seedLeadSources() {
+  let created = 0;
+  for (const [index, name] of (client.leadSources ?? []).entries()) {
+    const code = toCode(name);
+    if (await prisma.leadSource.findUnique({ where: { code } })) continue;
+    await prisma.leadSource.create({ data: { code, name, sortOrder: (index + 1) * 10 } });
+    created += 1;
+  }
+  if (created) console.log(`  lead sources: +${created}`);
 }
 
 async function seedSuperAdmin() {
@@ -70,6 +83,7 @@ async function main() {
 
   await seedCompany();
   await seedOrganization();
+  await seedLeadSources();
 
   const modules = await discoverModules();
   const catalog = buildCatalog(modules);

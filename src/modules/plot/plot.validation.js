@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { listQuerySchema } from "#core/utils/listQuery.js";
-import { optionalId, optionalText } from "#core/utils/validators.js";
+import { money, optionalId, optionalText } from "#core/utils/validators.js";
 import { FACINGS, PLOT_STATUSES, sortableFields } from "./plot.constant.js";
 
 export const PlotStatus = z.enum(PLOT_STATUSES);
@@ -9,12 +9,7 @@ export const Facing = z.enum(FACINGS);
 const blankToNull = (schema) =>
   z.preprocess((v) => (v === "" ? null : v), schema.nullable().optional());
 
-/** Money in BDT with up to 2 decimals. */
-export const money = z.coerce
-  .number({ error: "Enter an amount" })
-  .nonnegative()
-  .max(1_000_000_000_000)
-  .refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, { message: "At most 2 decimals" });
+export { money };
 
 export const area = z.coerce.number({ error: "Enter the area" }).positive().max(10_000_000);
 

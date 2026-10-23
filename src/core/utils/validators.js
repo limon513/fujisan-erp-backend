@@ -61,3 +61,10 @@ export const queryBoolean = () =>
     .enum(["true", "false"])
     .transform((value) => value === "true")
     .optional();
+
+/** Money in BDT with up to 2 decimals. */
+export const money = z.coerce
+  .number({ error: "Enter an amount" })
+  .nonnegative()
+  .max(1_000_000_000_000)
+  .refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, { message: "At most 2 decimals" });
