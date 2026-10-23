@@ -14,6 +14,7 @@ import {
 } from "#core/auth/tokens.js";
 import { recordAudit } from "#core/audit/audit.service.js";
 import { sendMail } from "#core/mail/mailer.js";
+import logger from "#core/utils/logger.js";
 import { buildListArgs, paginationMeta } from "#core/utils/listQuery.js";
 import { hashPassword, verifyPassword } from "#core/utils/password.js";
 import { normalizeBdMobile } from "#core/utils/validators.js";
@@ -293,13 +294,18 @@ const forgotPassword = async ({ identifier }) => {
     }),
   ]);
 
-  await sendMail({
-    to: user.email,
-    subject: `${config.appName}: password reset code`,
-    text:
-      `Your password reset code is ${code}.\n\n` +
-      `It expires in ${RESET_CODE_TTL_MS / 60000} minutes. If you didn't request this, ignore this email.`,
-  });
+  // The reply stays the same whether or not the email went out (no account enumeration)
+  try {
+    await sendMail({
+      to: user.email,
+      subject: `${config.appName}: password reset code`,
+      text:
+        `Your password reset code is ${code}.\n\n` +
+        `It expires in ${RESET_CODE_TTL_MS / 60000} minutes. If you didn't request this, ignore this email.`,
+    });
+  } catch (error) {
+    logger.error({ err: error, userId: user.id }, "Password reset email failed");
+  }
   await recordAudit({
     action: "PASSWORD_RESET_REQUESTED",
     entityType: "User",

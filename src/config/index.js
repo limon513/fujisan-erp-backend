@@ -34,7 +34,9 @@ const envSchema = z.object({
   MAX_FAILED_LOGINS: z.coerce.number().int().positive().default(5),
   LOCKOUT_MINUTES: z.coerce.number().int().positive().default(15),
 
-  // Mail (password reset, notifications). Without SMTP_HOST mail is logged instead of sent.
+  // Mail (password reset, notifications): Resend's HTTP API when RESEND_API_KEY is set, else SMTP
+  // when SMTP_HOST is set, else the mail is logged instead of sent.
+  RESEND_API_KEY: z.string().optional(),
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USER: z.string().optional(),
@@ -122,6 +124,7 @@ const config = Object.freeze({
     maxUploadBytes: env.MAX_UPLOAD_MB * 1024 * 1024,
   },
   mail: {
+    resendApiKey: env.RESEND_API_KEY || undefined,
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
     user: env.SMTP_USER,
