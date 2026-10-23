@@ -22,6 +22,12 @@ const checkDuplicates = async (req, res) =>
     data: await LeadService.checkDuplicates(req.valid.query),
   });
 
+const assignees = async (req, res) =>
+  sendResponse(res, {
+    message: "Employees you can assign leads to",
+    data: await LeadService.assignees(access(req)),
+  });
+
 const create = async (req, res) =>
   sendResponse(res, {
     statusCode: StatusCodes.CREATED,
@@ -69,6 +75,7 @@ export const LeadController = {
   list,
   getById,
   checkDuplicates,
+  assignees,
   create,
   update,
   remove,

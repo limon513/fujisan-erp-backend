@@ -276,6 +276,25 @@ const getById = async (access, id) => {
 
 const checkDuplicates = (query) => findDuplicates(query);
 
+/** Active employees the actor may assign leads to (their lead.assign scope). */
+const assignees = async (access) =>
+  prisma.employee.findMany({
+    where: {
+      deletedAt: null,
+      employmentStatus: "ACTIVE",
+      AND: [buildScopeWhere(access.actor, access.scope, { owner: "id" })],
+    },
+    orderBy: { fullName: "asc" },
+    take: 500,
+    select: {
+      id: true,
+      fullName: true,
+      employeeCode: true,
+      designation: { select: { name: true } },
+      team: { select: { id: true, name: true } },
+    },
+  });
+
 // ---- Commands -------------------------------------------------------------------------------
 
 const create = async (access, { confirmDuplicate, ownerId, unassigned, ...data }) => {
@@ -466,6 +485,7 @@ export const LeadService = {
   list,
   getById,
   checkDuplicates,
+  assignees,
   create,
   update,
   remove,

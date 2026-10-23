@@ -83,6 +83,23 @@ defineRoute({
   }),
 });
 
+defineRoute({
+  method: "get",
+  path: "/leads/assignees",
+  tags,
+  summary: "Employees I can assign leads to",
+  description: "Requires `lead.assign`; active employees inside its scope.",
+  response: z.array(
+    z.object({
+      id: z.uuid(),
+      fullName: z.string(),
+      employeeCode: z.string(),
+      designation: z.object({ name: z.string() }),
+      team: z.object({ id: z.uuid(), name: z.string() }).nullable(),
+    }),
+  ),
+});
+
 const actions = [
   [
     "status",

@@ -196,6 +196,14 @@ describe("leads", () => {
     expect((await api("get", `/leads/${lead.id}`, "seller")).status).toBe(404);
   });
 
+  it("lists the employees each person may assign to", async () => {
+    const names = async (as) =>
+      (await api("get", "/leads/assignees", as)).body.data.map((e) => e.fullName);
+    expect(await names("leader")).toEqual(["Rahim Seller", "Tania Leader"]);
+    expect((await names("crm")).length).toBe(5);
+    expect((await api("get", "/leads/assignees", "seller")).status).toBe(403);
+  });
+
   it("keeps unassigned leads in the pool for managers", async () => {
     const lead = (await newLead("crm", { unassigned: true })).body.data;
     expect(lead.owner).toBeNull();
