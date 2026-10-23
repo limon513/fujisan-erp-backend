@@ -59,7 +59,7 @@ layouts, holds with day limit + auto-release, sold on registration, single owner
   - ☑ 3.1a Lead sources, campaigns, leads (duplicate check by mobile/email, timeline of calls/notes, pipeline status, manual assignment + pool, convert to customer)
   - ☑ 3.1b Follow-ups and site visits (due lists, reminders, next steps on the lead, dashboard tiles)
   - ☐ 3.1c Pipeline (kanban) view, assignment rules (round robin, team, project, location)
-- ☐ 3.2 Notifications (in-app) + follow-up reminders
+- ☑ 3.2 Notifications (in-app): bell with unread count, list, mark read; follow-up / site visit reminders; old ones pruned
 - ☐ 3.3 Accounting engine: chart of accounts (seeded template), fiscal year, journal posting service
 - ☐ 3.4 Sales: discount request → approval, quotation
 - ☐ 3.5 Booking wizard (customer → unit → price/discount → booking money → plan → documents → approval → confirm)
