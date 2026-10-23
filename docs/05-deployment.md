@@ -60,6 +60,19 @@ The backend accepts either these standard `AWS_*` names (paste Neon's block as-i
 Cloudflare R2 works the same way: endpoint `https://<account-id>.r2.cloudflarestorage.com`,
 region `auto`, and an R2 API token with read/write on the bucket.
 
+### Email (password reset codes, later notifications)
+
+The demo sends mail through **Resend**'s HTTP API:
+
+| Render variable  | Value                                                                      |
+| ---------------- | -------------------------------------------------------------------------- |
+| `RESEND_API_KEY` | the Resend API key (`re_…`)                                                |
+| `MAIL_FROM`      | `Fujisan ERP <onboarding@resend.dev>` until a domain is verified in Resend |
+
+Without a verified domain Resend only delivers to the Resend account owner's address. For a client,
+verify their domain in Resend and set `MAIL_FROM` to e.g. `Fujisan ERP <no-reply@their-domain>`.
+With no `RESEND_API_KEY` the backend falls back to SMTP (`SMTP_HOST`…), then to logging the email.
+
 Files are always served through the API with short-lived signed links, so the bucket never needs
 public access.
 

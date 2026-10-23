@@ -239,6 +239,7 @@ async function finish(tx, request, status, { comment } = {}) {
  * @param {object} actor   the requester (req.actor)
  * @param {object} input   { workflow: code, entityType, entityId, title, summary?, link?,
  *                           amount?, percent?, snapshot? }
+ *                         snapshot = what approvers see, as { "List price": "৳48,00,000", ... }
  * @returns the request; `status` is APPROVED right away when the workflow is switched off or empty
  */
 export async function submitApproval(tx, actor, input) {
