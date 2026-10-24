@@ -199,7 +199,8 @@ erDiagram
 
 **Booking**
 
-- `Booking`: bookingNo ✱, plotId, projectId, customerId (single owner), bookingDate, listPrice, discountAmount, discountPercent, discountApprovalId?, netPrice, additionalCharges (registration, utility…), totalPayable, bookingMoney, planType (ONE_TIME, INSTALLMENT), status (DRAFT, PENDING_APPROVAL, CONFIRMED, REGISTERED = plot SOLD, CANCELLED, TRANSFERRED), salesExecutiveId (=ownerId), teamId, departmentId, branchId, leadId?, approvalRequestId?, confirmedAt, priceSnapshot JSON.
+- `Booking` (3.5, built): bookingNo ✱ (BK-000001), plotId, projectId, customerId (single owner), leadId?, paymentPlanId?, bookingDate, listPrice, discountRequested + discountReason, discountAmount (as asked while pending, as approved once confirmed), netPrice (CHECK = list − discount), interestAmount, totalPayable (CHECK = net + interest), planName + planTerms JSON (the plan copied in), status (PENDING_APPROVAL, CONFIRMED, REGISTERED, REJECTED, CANCELLED), approvalRequestId, confirmedAt, closedAt/closeReason, owner + org stamp (scope) — partial unique (plotId) WHERE status IN (PENDING_APPROVAL, CONFIRMED, REGISTERED). Submitting reserves the plot (BOOKED; an active hold → CONVERTED); one BOOKING approval (Sales Manager) settles the discount — the approver may change it (`ApprovalRequest.approvedAmount`, workflow `adjustableLabel`); confirmation creates `Installment` rows and converts the lead; rejection/withdrawal frees the plot.
+- `Installment` (built): bookingId, number (0 = down payment) ✱ per booking, kind (DOWN_PAYMENT, INSTALLMENT), dueDate, amount, paidAmount, lateFee, status (DUE, PARTIAL, PAID, WAIVED), paidAt.
 - `BookingTransfer`: bookingId, fromCustomerId, toCustomerId, fee, approvalRequestId, transferredAt.
 
 **EMI**

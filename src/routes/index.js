@@ -13,7 +13,7 @@ const modulesDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".
  *
  * Manifest shape:
  *   { name, basePath, router, permissions?: Permission[], dependsOn?: string[], core?: boolean,
- *     approvalWorkflows?: { code, name, description? }[] }
+ *     approvalWorkflows?: { code, name, description?, adjustableLabel? }[] }
  * (`permissions` is built with `definePermissions()` from #core/rbac/permissions.js;
  *  `approvalWorkflows` are created by the seed, see prisma/seed/core/approvals.js)
  */

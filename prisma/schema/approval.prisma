@@ -31,18 +31,20 @@ enum ApprovalDecision {
 
 /// One per process. Business modules declare their workflows in their manifest; the seed creates them.
 model ApprovalWorkflow {
-  id          String   @id @default(uuid(7)) @db.Uuid
+  id              String   @id @default(uuid(7)) @db.Uuid
   /// e.g. DISCOUNT, BOOKING, CANCELLATION
-  code        String   @unique
-  name        String
-  description String?
+  code            String   @unique
+  name            String
+  description     String?
   /// module that owns the process
-  module      String
+  module          String
   /// when off, requests are approved immediately
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
-  updatedById String?  @db.Uuid
+  isActive        Boolean  @default(true)
+  /// set when approvers may approve a different amount, e.g. "Discount (৳)"
+  adjustableLabel String?
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(3)
+  updatedById     String?  @db.Uuid
 
   steps    ApprovalStep[]
   requests ApprovalRequest[]
@@ -83,6 +85,8 @@ model ApprovalRequest {
   /// frontend path of the record, e.g. /bookings/<id>
   link                String?
   amount              Decimal?       @db.Decimal(14, 2)
+  /// amount as approved, when an approver changed it (workflows with adjustableLabel)
+  approvedAmount      Decimal?       @db.Decimal(14, 2)
   percent             Decimal?       @db.Decimal(5, 2)
   /// the record as submitted, shown to approvers
   snapshot            Json?

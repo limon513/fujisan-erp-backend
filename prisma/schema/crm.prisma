@@ -149,6 +149,7 @@ model Lead {
   activities        LeadActivity[]
   followUps         FollowUp[]
   siteVisits        SiteVisit[]
+  bookings          Booking[]
 
   @@index([mobile])
   @@index([email])

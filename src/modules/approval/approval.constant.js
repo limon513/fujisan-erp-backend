@@ -26,12 +26,13 @@ export const requestListSelect = {
   currentStepOrder: true,
   createdAt: true,
   completedAt: true,
-  workflow: { select: { id: true, code: true, name: true } },
+  workflow: { select: { id: true, code: true, name: true, adjustableLabel: true } },
   requestedBy: { select: userName },
 };
 
 export const requestDetailSelect = {
   ...requestListSelect,
+  approvedAmount: true,
   entityType: true,
   entityId: true,
   snapshot: true,
@@ -62,6 +63,7 @@ export const workflowSelect = {
   description: true,
   module: true,
   isActive: true,
+  adjustableLabel: true,
   updatedAt: true,
   steps: {
     orderBy: { stepOrder: "asc" },

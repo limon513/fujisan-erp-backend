@@ -220,6 +220,10 @@ const remove = async (access, id) => {
   if (await prisma.plotHold.count({ where: { customerId: id, status: "ACTIVE" } })) {
     throw AppError.conflict("This customer has a plot on hold. Release it first.");
   }
+  const live = await prisma.booking.count({
+    where: { customerId: id, status: { in: ["PENDING_APPROVAL", "CONFIRMED", "REGISTERED"] } },
+  });
+  if (live) throw AppError.conflict("This customer has a booking. It can't be deleted.");
   await prisma.customer.update({
     where: { id },
     data: { deletedAt: new Date(), updatedById: access.actor.userId },

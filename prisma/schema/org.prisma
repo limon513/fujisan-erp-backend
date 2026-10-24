@@ -185,6 +185,7 @@ model Employee {
   leadsOwned       Lead[]       @relation("LeadOwner")
   followUpsOwned   FollowUp[]   @relation("FollowUpOwner")
   siteVisitsOwned  SiteVisit[]  @relation("SiteVisitOwner")
+  bookingsOwned    Booking[]    @relation("BookingOwner")
 
   @@index([branchId])
   @@index([departmentId])

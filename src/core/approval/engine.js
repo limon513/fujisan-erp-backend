@@ -352,7 +352,7 @@ async function lockPending(tx, id) {
   const request = await tx.approvalRequest.findUnique({
     where: { id },
     include: {
-      workflow: { select: { code: true, name: true } },
+      workflow: { select: { code: true, name: true, adjustableLabel: true } },
       actions: { where: { decision: "APPROVED" }, select: { actorId: true } },
       requestedBy: { select: userNameSelect },
     },
@@ -367,8 +367,12 @@ async function lockPending(tx, id) {
 const stepName = (request, order) =>
   request.steps.find((step) => step.stepOrder === order)?.name ?? `step ${order}`;
 
-/** Approve or reject the current step. Super Admins may act on any step. */
-export async function decide(tx, actor, id, { decision, comment }) {
+/**
+ * Approve or reject the current step. Super Admins may act on any step.
+ * `amount`: approve a different amount (only workflows with an adjustableLabel, e.g. a discount);
+ * the module's handler validates it and reads it as `request.approvedAmount`.
+ */
+export async function decide(tx, actor, id, { decision, comment, amount }) {
   const request = await lockPending(tx, id);
   if (request.requestedById === actor.userId) {
     throw AppError.forbidden("You can't decide on your own request");
@@ -379,15 +383,31 @@ export async function decide(tx, actor, id, { decision, comment }) {
 
   const stepOrder = request.currentStepOrder;
   const step = stepName(request, stepOrder);
+  let note = comment ?? null;
+  if (decision === "APPROVED" && amount != null) {
+    const label = request.workflow.adjustableLabel;
+    if (!label) {
+      throw AppError.unprocessable("This request can only be approved as asked", [
+        { path: "amount", message: "Can't be changed" },
+      ]);
+    }
+    const current = request.approvedAmount ?? request.amount;
+    if (current == null || Number(current) !== Number(amount)) {
+      await tx.approvalRequest.update({ where: { id }, data: { approvedAmount: amount } });
+      request.approvedAmount = amount;
+      const change = `${label} changed to ${Number(amount).toLocaleString("en-IN")}`;
+      note = note ? `${change}. ${note}` : change;
+    }
+  }
   await tx.approvalAction.create({
-    data: { requestId: id, stepOrder, actorId: actor.userId, decision, comment: comment ?? null },
+    data: { requestId: id, stepOrder, actorId: actor.userId, decision, comment: note },
   });
   await recordAudit(
     {
       action: decision === "APPROVED" ? "APPROVE" : "REJECT",
       entityType: request.entityType,
       entityId: request.entityId,
-      description: `${decision === "APPROVED" ? "Approved" : "Rejected"} ${request.requestNo} as ${step}${comment ? `: ${comment}` : ""}`,
+      description: `${decision === "APPROVED" ? "Approved" : "Rejected"} ${request.requestNo} as ${step}${note ? `: ${note}` : ""}`,
     },
     tx,
   );

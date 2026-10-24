@@ -184,6 +184,13 @@ describe("approval flow", () => {
     expect((await act("manager", req.id, "approve")).status).toBe(409);
   });
 
+  it("approves changed amounts only where the workflow allows it", async () => {
+    const req = await submit("seller", { percent: 1, amount: 1000 });
+    const res = await act("leader", req.id, "approve", { amount: 500 });
+    expect(res.status).toBe(422);
+    expect(res.body.errors[0].path).toBe("amount");
+  });
+
   it("needs only the Team Leader within 2%", async () => {
     const req = await submit("seller", { percent: 1.5 });
     const res = await act("leader", req.id, "approve");

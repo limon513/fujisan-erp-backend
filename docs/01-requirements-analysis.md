@@ -170,8 +170,8 @@ These change the database design, so we need answers **before** the related phas
   overdue installment after the grace period (to confirm).
 - Cancellation: a charge deducted from the refund, fixed ৳ or % — assumed % of the amount paid.
 - Interest assumed flat per year on the amount after the down payment (to confirm).
-- Still open: discount limits per approval level (Q7); the approval chain ships with 2% / 5% /
-  Director as an editable default.
+- Discounts (Q7): the Sales Manager approves each booking and settles its discount — may approve
+  more or less than asked. Management sees every request but doesn't have to approve.
 
 **Decided (2026-10-11)**
 

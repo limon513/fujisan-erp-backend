@@ -46,7 +46,108 @@ model PaymentPlan {
   updatedById             String?              @db.Uuid
   deletedAt               DateTime?            @db.Timestamptz(3)
 
-  project Project? @relation("ProjectPaymentPlans", fields: [projectId], references: [id], onDelete: SetNull)
+  project  Project?  @relation("ProjectPaymentPlans", fields: [projectId], references: [id], onDelete: SetNull)
+  bookings Booking[]
 
   @@index([projectId, isActive])
+}
+
+enum BookingStatus {
+  /// submitted; the plot is reserved (BOOKED) until the decision
+  PENDING_APPROVAL
+  CONFIRMED
+  /// deed registered: the plot is SOLD
+  REGISTERED
+  REJECTED
+  CANCELLED
+}
+
+enum InstallmentKind {
+  DOWN_PAYMENT
+  INSTALLMENT
+}
+
+enum InstallmentStatus {
+  DUE
+  PARTIAL
+  PAID
+  WAIVED
+}
+
+/**
+ * A customer's booking of a plot under a payment plan. Prices and the plan's terms are copied in
+ * at booking, so later price or plan changes never alter it.
+ */
+model Booking {
+  id                String        @id @default(uuid(7)) @db.Uuid
+  /// BK-000001
+  bookingNo         String        @unique
+  plotId            String        @db.Uuid
+  projectId         String        @db.Uuid
+  customerId        String        @db.Uuid
+  leadId            String?       @db.Uuid
+  paymentPlanId     String?       @db.Uuid
+  bookingDate       DateTime      @db.Date
+  /// plot price at booking
+  listPrice         Decimal       @db.Decimal(14, 2)
+  /// discount the salesperson asked for
+  discountRequested Decimal       @default(0) @db.Decimal(14, 2)
+  discountReason    String?
+  /// discount in force: as asked while pending, as approved once confirmed
+  discountAmount    Decimal       @default(0) @db.Decimal(14, 2)
+  netPrice          Decimal       @db.Decimal(14, 2)
+  interestAmount    Decimal       @default(0) @db.Decimal(14, 2)
+  totalPayable      Decimal       @db.Decimal(14, 2)
+  planName          String
+  /// the payment plan's terms at booking (down payment, installments, interest, late fee, cancellation)
+  planTerms         Json
+  status            BookingStatus @default(PENDING_APPROVAL)
+  approvalRequestId String?       @db.Uuid
+  notes             String?
+  confirmedAt       DateTime?     @db.Timestamptz(3)
+  closedAt          DateTime?     @db.Timestamptz(3)
+  closeReason       String?
+  /// data scope: the sales executive (+ their org)
+  ownerId           String?       @db.Uuid
+  teamId            String?       @db.Uuid
+  departmentId      String?       @db.Uuid
+  branchId          String?       @db.Uuid
+  createdAt         DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime      @updatedAt @db.Timestamptz(3)
+  createdById       String?       @db.Uuid
+  updatedById       String?       @db.Uuid
+
+  plot         Plot          @relation(fields: [plotId], references: [id], onDelete: Restrict)
+  project      Project       @relation("ProjectBookings", fields: [projectId], references: [id], onDelete: Restrict)
+  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lead         Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  paymentPlan  PaymentPlan?  @relation(fields: [paymentPlanId], references: [id], onDelete: SetNull)
+  owner        Employee?     @relation("BookingOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  installments Installment[]
+
+  @@index([plotId, status])
+  @@index([customerId])
+  @@index([ownerId, status])
+  @@index([status, bookingDate])
+}
+
+/// The booking's payment schedule: the down payment (number 0) and the installments.
+model Installment {
+  id         String            @id @default(uuid(7)) @db.Uuid
+  bookingId  String            @db.Uuid
+  number     Int
+  kind       InstallmentKind
+  dueDate    DateTime          @db.Date
+  amount     Decimal           @db.Decimal(14, 2)
+  paidAmount Decimal           @default(0) @db.Decimal(14, 2)
+  lateFee    Decimal           @default(0) @db.Decimal(14, 2)
+  status     InstallmentStatus @default(DUE)
+  paidAt     DateTime?         @db.Timestamptz(3)
+  createdAt  DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime          @updatedAt @db.Timestamptz(3)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, number])
+  @@index([status, dueDate])
 }

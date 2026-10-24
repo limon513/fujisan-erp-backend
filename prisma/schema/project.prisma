@@ -47,6 +47,7 @@ model Project {
   siteVisits      SiteVisit[]          @relation("SiteVisitProject")
   assignmentRules LeadAssignmentRule[] @relation("AssignmentRuleProject")
   paymentPlans    PaymentPlan[]        @relation("ProjectPaymentPlans")
+  bookings        Booking[]            @relation("ProjectBookings")
 }
 
 model Block {
@@ -136,6 +137,7 @@ model Plot {
   holds         PlotHold[]
   statusHistory PlotStatusHistory[]
   priceHistory  PlotPriceHistory[]
+  bookings      Booking[]
 
   @@unique([projectId, code])
   @@index([projectId, status])

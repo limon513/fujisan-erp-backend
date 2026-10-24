@@ -146,8 +146,10 @@ const getById = async (actor, id) => {
   };
 };
 
-const approve = async (actor, id, { comment }) => {
-  await prisma.$transaction((tx) => decide(tx, actor, id, { decision: "APPROVED", comment }));
+const approve = async (actor, id, { comment, amount }) => {
+  await prisma.$transaction((tx) =>
+    decide(tx, actor, id, { decision: "APPROVED", comment, amount }),
+  );
   return getById(actor, id);
 };
 

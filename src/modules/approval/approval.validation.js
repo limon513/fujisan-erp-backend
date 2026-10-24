@@ -66,7 +66,15 @@ const list = listQuerySchema({
   },
 });
 
-const approve = z.object({ comment: optionalText(500) });
+const approve = z.object({
+  comment: optionalText(500),
+  amount: z.coerce
+    .number()
+    .nonnegative()
+    .max(1_000_000_000_000)
+    .optional()
+    .meta({ description: "Approve a different amount (workflows with an adjustable amount only)" }),
+});
 const reject = z.object({ comment: z.string().trim().min(3, "Say why").max(500) });
 const cancel = z.object({ comment: optionalText(500) });
 
