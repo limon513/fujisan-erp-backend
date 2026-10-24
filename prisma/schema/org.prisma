@@ -108,10 +108,11 @@ model Team {
   updatedById  String?   @db.Uuid
   deletedAt    DateTime? @db.Timestamptz(3)
 
-  branch     Branch     @relation(fields: [branchId], references: [id], onDelete: Restrict)
-  department Department @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  leader     Employee?  @relation("TeamLeader", fields: [leaderId], references: [id], onDelete: SetNull)
-  members    Employee[] @relation("TeamMembers")
+  branch              Branch               @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  department          Department           @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  leader              Employee?            @relation("TeamLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  members             Employee[]           @relation("TeamMembers")
+  leadAssignmentRules LeadAssignmentRule[]
 
   @@unique([branchId, departmentId, name])
   @@index([leaderId])

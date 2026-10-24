@@ -15,6 +15,8 @@ import { syncApprovalWorkflows } from "./core/approvals.js";
 import { toCode } from "../../src/modules/lead-source/lead-source.constant.js";
 
 const clientName = process.env.SEED_CLIENT || "fujisan";
+// Many small queries; from a laptop to a hosted database each one is a network round trip
+const TX_OPTIONS = { timeout: 120_000, maxWait: 20_000 };
 const { default: client } = await import(`./clients/${clientName}.js`);
 
 async function seedCompany() {
@@ -87,8 +89,9 @@ async function main() {
 
   const modules = await discoverModules();
   const catalog = buildCatalog(modules);
-  const summary = await prisma.$transaction((tx) =>
-    syncAccessControl(tx, { catalog, roles: systemRoles }),
+  const summary = await prisma.$transaction(
+    (tx) => syncAccessControl(tx, { catalog, roles: systemRoles }),
+    TX_OPTIONS,
   );
   console.log(
     `  access control: ${catalog.length} permissions in catalog, ` +
@@ -96,8 +99,9 @@ async function main() {
       `+${summary.rolesCreated} roles, +${summary.grantsCreated} grants`,
   );
 
-  const approvals = await prisma.$transaction((tx) =>
-    syncApprovalWorkflows(tx, { modules, chains: client.approvalChains }),
+  const approvals = await prisma.$transaction(
+    (tx) => syncApprovalWorkflows(tx, { modules, chains: client.approvalChains }),
+    TX_OPTIONS,
   );
   console.log(`  approval workflows: +${approvals.created}`);
 

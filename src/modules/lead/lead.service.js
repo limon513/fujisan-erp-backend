@@ -19,6 +19,7 @@ import {
   notifyEmployee,
   refreshNextFollowUp,
 } from "./lead.workflow.js";
+import { autoAssign } from "./lead.assignment.js";
 
 const invalid = (path, message) => AppError.unprocessable(message, [{ path, message }]);
 
@@ -229,25 +230,26 @@ const openVisitSelect = {
   owner: ownerName,
 };
 
+/** Scope + search + filters shared by the lead list and the pipeline board. */
+const filterWhere = (access, query, searchWhere) => ({
+  deletedAt: null,
+  AND: [
+    scopeWhere(access),
+    searchWhere,
+    query.sourceId ? { sourceId: query.sourceId } : {},
+    query.campaignId ? { campaignId: query.campaignId } : {},
+    query.projectId ? { preferredProjectId: query.projectId } : {},
+    query.ownerId ? { ownerId: query.ownerId } : {},
+    query.unassigned ? { ownerId: null } : {},
+  ],
+});
+
+const statusWhere = (status) =>
+  status === "OPEN" ? { status: { in: OPEN_STATUSES } } : status ? { status } : {};
+
 const list = async (access, query) => {
   const { skip, take, orderBy, searchWhere } = buildListArgs(query, searchableFields);
-  const where = {
-    deletedAt: null,
-    AND: [
-      scopeWhere(access),
-      searchWhere,
-      query.status === "OPEN"
-        ? { status: { in: OPEN_STATUSES } }
-        : query.status
-          ? { status: query.status }
-          : {},
-      query.sourceId ? { sourceId: query.sourceId } : {},
-      query.campaignId ? { campaignId: query.campaignId } : {},
-      query.projectId ? { preferredProjectId: query.projectId } : {},
-      query.ownerId ? { ownerId: query.ownerId } : {},
-      query.unassigned ? { ownerId: null } : {},
-    ],
-  };
+  const where = { AND: [filterWhere(access, query, searchWhere), statusWhere(query.status)] };
   const order = NULLS_LAST.includes(query.sortBy)
     ? { [query.sortBy]: { sort: query.sortOrder, nulls: "last" } }
     : orderBy;
@@ -262,6 +264,35 @@ const list = async (access, query) => {
     prisma.lead.count({ where }),
   ]);
   return { data, meta: paginationMeta(query, total) };
+};
+
+/**
+ * Kanban board: one column per open pipeline stage with its count and the most recently worked
+ * leads, plus how many are closed (converted / lost).
+ */
+const pipeline = async (access, query) => {
+  const { searchWhere } = buildListArgs(
+    { ...query, page: 1, sortBy: "createdAt" },
+    searchableFields,
+  );
+  const base = filterWhere(access, query, searchWhere);
+  const count = (status) => prisma.lead.count({ where: { AND: [base, { status }] } });
+  const columns = await Promise.all(
+    OPEN_STATUSES.map(async (status) => {
+      const [total, leads] = await Promise.all([
+        count(status),
+        prisma.lead.findMany({
+          where: { AND: [base, { status }] },
+          orderBy: [{ lastActivityAt: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+          take: query.limit,
+          select: leadListSelect,
+        }),
+      ]);
+      return { status, count: total, leads };
+    }),
+  );
+  const [converted, lost] = await Promise.all([count("CONVERTED"), count("LOST")]);
+  return { columns, closed: { converted, lost } };
 };
 
 const getById = async (access, id) => {
@@ -356,7 +387,9 @@ const create = async (
       });
       await refreshNextFollowUp(tx, created.id);
     }
-    await notifyOwner(tx, actor, created);
+    // Unassigned leads go through the assignment rules; no match = they stay in the pool
+    if (!created.ownerId) await autoAssign(tx, created, actor);
+    else await notifyOwner(tx, actor, created);
     return created;
   });
   return getById({ actor, scope: "ALL" }, lead.id);
@@ -518,6 +551,7 @@ const convert = async (access, id, { customerId }) => {
 
 export const LeadService = {
   list,
+  pipeline,
   getById,
   checkDuplicates,
   assignees,

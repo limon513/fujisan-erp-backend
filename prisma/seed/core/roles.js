@@ -145,6 +145,7 @@ export const systemRoles = [
     template: [
       ...EVERYONE,
       ...all(SALES, "BRANCH"),
+      ["lead-assignment-rule.*", "ALL"],
       ...each(INVENTORY_VIEW, "view", "ALL"),
       ["plot.hold", "ALL"],
       ["emi.view", "BRANCH"],
@@ -209,7 +210,7 @@ export const systemRoles = [
     level: 30,
     template: [
       ...EVERYONE,
-      ...all(["lead", "follow-up", "site-visit", "lead-source"], "ALL"),
+      ...all(["lead", "follow-up", "site-visit", "lead-source", "lead-assignment-rule"], "ALL"),
       ["lead.delete", null],
       ["customer.view", "ALL"],
       ["customer.edit", "ALL"],

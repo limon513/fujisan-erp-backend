@@ -193,7 +193,7 @@ erDiagram
 - `LeadActivity` (timeline, append-only: CREATED, NOTE, CALL, SMS, WHATSAPP, EMAIL, MEETING, STATUS_CHANGE, ASSIGNMENT, CONVERTED; from/to status, data JSON).
 - `FollowUp` (3.1b): leadId, type (CALL, WHATSAPP, SMS, EMAIL, MEETING), dueAt, purpose, status (PENDING, DONE, CANCELLED; CHECK DONE ⇒ doneAt), outcome, doneAt/doneById, cancelReason, reminderSentAt, owner + org stamp (scope; follows the lead on reassignment). `Lead.nextFollowUpAt` = earliest PENDING dueAt.
 - `SiteVisit` (3.1b): leadId, projectId, scheduledAt, transport (OFFICE_CAR, OWN, OTHER), pickupPoint, visitors (1–50), note, status (SCHEDULED, VISITED, NO_SHOW, CANCELLED; CHECK VISITED ⇒ visitedAt), interest (HOT, WARM, COLD), plotsShown, feedback, cancelReason, reminderSentAt, owner + org stamp. Booking a visit moves the lead forward to SITE_VISIT; a lost/deleted lead cancels its open follow-ups and visits.
-- Planned for 3.1c: `LeadAssignmentRule` (type: ROUND_ROBIN/TEAM/PROJECT/LOCATION, config JSON, priority, pointer for round robin).
+- `LeadAssignmentRule` (3.1c): name, priority (lowest first), isActive; conditions sourceId?, projectId?, locationKeywords[] (set ones must all match); pool poolType TEAM (teamId: its active members) or EMPLOYEES (employeeIds[], in that order; CHECK pool matches type); round-robin nextIndex (row locked while assigning), assignedCount, lastAssignedAt. Applied when a new lead would be unassigned; no match = pool (manual).
 
 **Booking**
 

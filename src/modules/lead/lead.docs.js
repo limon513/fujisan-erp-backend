@@ -85,6 +85,20 @@ defineRoute({
 
 defineRoute({
   method: "get",
+  path: "/leads/pipeline",
+  tags,
+  summary: "Kanban board of open leads",
+  description:
+    "One column per open stage (NEW … BOOKING) with its count and the most recently worked leads; `closed` counts converted and lost. Same scope and filters as GET /leads. Move a card with POST /leads/{id}/status.",
+  request: { query: V.pipeline },
+  response: z.object({
+    columns: z.array(z.object({ status: Status, count: z.number().int(), leads: z.array(Lead) })),
+    closed: z.object({ converted: z.number().int(), lost: z.number().int() }),
+  }),
+});
+
+defineRoute({
+  method: "get",
   path: "/leads/assignees",
   tags,
   summary: "Employees I can assign leads to",

@@ -79,6 +79,22 @@ const list = listQuerySchema({
   },
 });
 
+const pipeline = z.object({
+  search: z.string().trim().min(1).optional(),
+  sourceId: z.uuid().optional(),
+  campaignId: z.uuid().optional(),
+  projectId: z.uuid().optional(),
+  ownerId: z.uuid().optional(),
+  unassigned: queryBoolean(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .default(30)
+    .meta({ description: "Leads per column" }),
+});
+
 const duplicateCheck = z
   .object({
     mobile: blankToNull(bdMobileSchema),
@@ -119,6 +135,7 @@ export const LeadValidation = {
   create,
   update,
   list,
+  pipeline,
   duplicateCheck,
   changeStatus,
   addActivity,

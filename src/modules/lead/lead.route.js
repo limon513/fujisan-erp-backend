@@ -17,6 +17,7 @@ router.get(
   validate({ query: V.duplicateCheck }),
   C.checkDuplicates,
 );
+router.get("/pipeline", authorize("lead.view"), validate({ query: V.pipeline }), C.pipeline);
 router.get("/assignees", authorize("lead.assign"), C.assignees);
 router.get("/:id", authorize("lead.view"), validate({ params: V.idParams }), C.getById);
 router.post("/", authorize("lead.create"), validate({ body: V.create }), C.create);

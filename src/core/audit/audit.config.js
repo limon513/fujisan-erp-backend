@@ -38,6 +38,8 @@ export const AUDITED_MODELS = {
   CustomerNominee: { label: "fullName" },
   LeadSource: { label: "name" },
   Campaign: { label: "name" },
+  // Round-robin bookkeeping changes on every assignment; the lead's timeline records those
+  LeadAssignmentRule: { label: "name", ignore: ["nextIndex", "assignedCount", "lastAssignedAt"] },
   // Status / owner changes also land in the lead's own timeline
   Lead: { label: "fullName", ignore: ["lastActivityAt", "assignedAt"] },
   // Chain edits are logged as one APPROVAL_CHAIN_CHANGED event; requests have their own history

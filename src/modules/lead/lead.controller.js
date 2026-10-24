@@ -10,6 +10,12 @@ const list = async (req, res) => {
   return sendResponse(res, { message: "Leads retrieved", data, meta });
 };
 
+const pipeline = async (req, res) =>
+  sendResponse(res, {
+    message: "Lead pipeline",
+    data: await LeadService.pipeline(access(req), req.valid.query),
+  });
+
 const getById = async (req, res) =>
   sendResponse(res, {
     message: "Lead retrieved",
@@ -73,6 +79,7 @@ const convert = async (req, res) =>
 
 export const LeadController = {
   list,
+  pipeline,
   getById,
   checkDuplicates,
   assignees,

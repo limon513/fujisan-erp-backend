@@ -73,8 +73,9 @@ model LeadSource {
   createdById String?  @db.Uuid
   updatedById String?  @db.Uuid
 
-  campaigns Campaign[]
-  leads     Lead[]
+  campaigns       Campaign[]
+  leads           Lead[]
+  assignmentRules LeadAssignmentRule[]
 }
 
 model Campaign {
@@ -247,4 +248,46 @@ model SiteVisit {
   @@index([ownerId, status, scheduledAt])
   @@index([status, scheduledAt])
   @@index([projectId, scheduledAt])
+}
+
+enum AssignmentPoolType {
+  /// the team's active members
+  TEAM
+  /// a chosen list of employees
+  EMPLOYEES
+}
+
+/**
+ * Hands new unassigned leads to a pool of employees in turn. Conditions left empty match every
+ * lead; rules are tried by priority (lowest first) and the first match wins. No match = the lead
+ * stays in the pool for manual assignment.
+ */
+model LeadAssignmentRule {
+  id               String             @id @default(uuid(7)) @db.Uuid
+  name             String
+  priority         Int                @default(100)
+  isActive         Boolean            @default(true)
+  // Conditions (all that are set must match)
+  sourceId         String?            @db.Uuid
+  projectId        String?            @db.Uuid
+  /// lead.location contains any of these (case-insensitive), e.g. ["Uttara", "Mirpur"]
+  locationKeywords String[]           @default([])
+  // Who gets the leads
+  poolType         AssignmentPoolType
+  teamId           String?            @db.Uuid
+  employeeIds      String[]           @default([]) @db.Uuid
+  /// round-robin position in the pool
+  nextIndex        Int                @default(0)
+  assignedCount    Int                @default(0)
+  lastAssignedAt   DateTime?          @db.Timestamptz(3)
+  createdAt        DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime           @updatedAt @db.Timestamptz(3)
+  createdById      String?            @db.Uuid
+  updatedById      String?            @db.Uuid
+
+  source  LeadSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  project Project?    @relation("AssignmentRuleProject", fields: [projectId], references: [id], onDelete: SetNull)
+  team    Team?       @relation(fields: [teamId], references: [id], onDelete: SetNull)
+
+  @@index([isActive, priority])
 }
