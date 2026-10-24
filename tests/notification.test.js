@@ -23,7 +23,10 @@ beforeEach(async () => {
   await seedAccessControl();
   me = await createUser({ username: "mine", roleSlug: "viewer" });
   other = await createUser({ username: "other", roleSlug: "viewer" });
-  h = { me: await authHeader(request, app, "mine"), other: await authHeader(request, app, "other") };
+  h = {
+    me: await authHeader(request, app, "mine"),
+    other: await authHeader(request, app, "other"),
+  };
   const day = 86_400_000;
   await prisma.notification.createMany({
     data: [

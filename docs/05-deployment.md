@@ -87,6 +87,28 @@ public access.
 4. Put the Vercel URL into Render's `CORS_ORIGINS` (only needed for tools calling the API
    cross-origin; the app itself goes through the rewrite).
 
+## Developing against the demo (current setup)
+
+Development and the demo share the Neon database and Neon storage, so whatever is entered while
+building is there to show clients. The local `.env` therefore has:
+
+| Variable                 | Value                                                         |
+| ------------------------ | ------------------------------------------------------------- |
+| `DATABASE_URL`           | Neon pooled URL                                               |
+| `DIRECT_DATABASE_URL`    | Neon direct URL (host without `-pooler`)                      |
+| `MIGRATION_DATABASE_URL` | local Postgres (`fujisan_erp`) — only for drafting migrations |
+| `STORAGE_DRIVER=s3`      | plus `S3_BUCKET=uploads` and Neon's `AWS_*` storage block     |
+| `TEST_DATABASE_URL`      | local `fujisan_erp_test` — tests refuse any non-local URL     |
+
+Workflow for a schema change:
+
+1. `npm run db:new-migration -- <name>` drafts the SQL against the local Postgres and applies it there.
+2. `npm run db:deploy` applies it to Neon (Render also runs `prisma migrate deploy` on every start).
+
+Rules: never run tests, seeds with test data, or destructive SQL against Neon; tests only ever use
+`TEST_DATABASE_URL`. Before any bulk change to Neon, back it up (Neon's server is newer than the
+local `pg_dump`, so `\copy` each table to CSV, or use Neon's point-in-time restore).
+
 ## Railway instead of Render
 
 Same settings: build `npm ci && npm run build`, start `npm run start:prod`, health check
