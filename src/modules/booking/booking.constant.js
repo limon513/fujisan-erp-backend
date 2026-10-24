@@ -53,6 +53,8 @@ export const bookingDetailSelect = {
   approvalRequestId: true,
   notes: true,
   confirmedAt: true,
+  registeredOn: true,
+  deedNo: true,
   closedAt: true,
   closeReason: true,
   ownerId: true,

@@ -112,3 +112,18 @@ describe("payment schedule", () => {
     expect(cancellationChargeFor(fixed, "150000")).toBe("150000.00");
   });
 });
+
+describe("amount in words", async () => {
+  const { takaInWords, numberInWords } = await import("#core/money/words.js");
+  it("uses crore, lakh and thousand", () => {
+    expect(takaInWords("935400")).toBe("Taka Nine Lakh Thirty Five Thousand Four Hundred Only");
+    expect(takaInWords("4677000.50")).toBe(
+      "Taka Forty Six Lakh Seventy Seven Thousand and Fifty Paisa Only",
+    );
+    expect(numberInWords(1234567890n)).toBe(
+      "One Hundred Twenty Three Crore Forty Five Lakh Sixty Seven Thousand Eight Hundred Ninety",
+    );
+    expect(takaInWords("0")).toBe("Taka Zero Only");
+    expect(takaInWords("100000")).toBe("Taka One Lakh Only");
+  });
+});

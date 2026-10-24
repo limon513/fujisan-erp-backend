@@ -33,6 +33,17 @@ const Booking = z
     owner: z.object({ id: z.uuid(), fullName: z.string() }).nullable(),
     installments: z.array(z.record(z.string(), z.unknown())).optional(),
     approval: z.record(z.string(), z.unknown()).nullable().optional(),
+    payments: z.array(z.record(z.string(), z.unknown())).optional(),
+    balance: z
+      .object({
+        due: z.string(),
+        paid: z.string(),
+        outstanding: z.string(),
+        overdue: z.string(),
+        overdueCount: z.number().int(),
+        lateFees: z.string(),
+      })
+      .optional(),
   })
   .meta({ id: "Booking", description: "Detail fields are included on GET /bookings/{id}" });
 
@@ -88,6 +99,18 @@ defineRoute({
   status: 201,
   errors: [400, 401, 403, 409, 422],
 });
+defineRoute({
+  method: "post",
+  path: "/bookings/:id/register",
+  tags,
+  summary: "Register the deed: booking REGISTERED, plot SOLD",
+  description:
+    "Requires `booking.register`. Confirmed bookings; payments can continue afterwards (the outstanding amount is recorded in the audit log).",
+  request: { params: V.idParams, body: V.register },
+  response: Booking,
+  errors: [400, 401, 403, 404, 409],
+});
+
 defineRoute({
   method: "post",
   path: "/bookings/:id/withdraw",

@@ -38,6 +38,7 @@ model Customer {
   plotHolds   PlotHold[]
   sourceLeads Lead[]            @relation("LeadConversions")
   bookings    Booking[]
+  payments    Payment[]
 
   @@index([mobile])
   @@index([nidNumber])

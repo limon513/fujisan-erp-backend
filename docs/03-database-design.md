@@ -203,7 +203,14 @@ erDiagram
 - `Installment` (built): bookingId, number (0 = down payment) ✱ per booking, kind (DOWN_PAYMENT, INSTALLMENT), dueDate, amount, paidAmount, lateFee, status (DUE, PARTIAL, PAID, WAIVED), paidAt.
 - `BookingTransfer`: bookingId, fromCustomerId, toCustomerId, fee, approvalRequestId, transferredAt.
 
-**EMI**
+**EMI and collection** (3.6–3.7, built)
+
+- `Installment` additionally: lateFeeAppliedAt (fee added once, after due date + plan grace), lateFeeWaivedReason, reminderDays (7/3/1 before due, 0 = overdue notice). CHECK paidAmount ≤ amount + lateFee.
+- `Payment`: paymentNo ✱ (PAY-) at entry, receiptNo ✱ (MR-) at verification, bookingId, customerId, amount (> 0), method (CASH, BANK_TRANSFER, CHEQUE, BKASH, NAGAD, CARD), reference, bankName, chequeDate, paidOn, note, status (PENDING → VERIFIED | REJECTED; VERIFIED → REVERSED), verifiedBy/At, rejectReason, reversedBy/At, reverseReason, booking's org stamp (scope). Never deleted. Entry ≤ outstanding minus pending entries; the verifier is not the person who entered it.
+- `PaymentAllocation`: paymentId, installmentId, amount — verification applies the amount oldest first (amount + late fee per installment) under a row lock on the booking; reversal undoes exactly these.
+- Registration: `Booking.registeredOn`, `deedNo`; CONFIRMED → REGISTERED, plot BOOKED → SOLD.
+
+Earlier sketch: **EMI**
 
 - `PaymentPlanTemplate` (per project: down-payment %, installment count, frequency) — optional presets.
 - `Installment`: bookingId, seq, type (BOOKING_MONEY, DOWN_PAYMENT, INSTALLMENT, SPECIAL, CHARGE), dueDate, amount, paidAmount, lateFee, lateFeeWaived, status (DUE, PARTIAL, PAID, OVERDUE, WAIVED, CANCELLED), paidAt — idx(dueDate, status). CHECK paidAmount ≤ amount.

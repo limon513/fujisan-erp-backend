@@ -105,6 +105,9 @@ model Booking {
   approvalRequestId String?       @db.Uuid
   notes             String?
   confirmedAt       DateTime?     @db.Timestamptz(3)
+  /// deed registration: the plot is SOLD
+  registeredOn      DateTime?     @db.Date
+  deedNo            String?
   closedAt          DateTime?     @db.Timestamptz(3)
   closeReason       String?
   /// data scope: the sales executive (+ their org)
@@ -124,6 +127,7 @@ model Booking {
   paymentPlan  PaymentPlan?  @relation(fields: [paymentPlanId], references: [id], onDelete: SetNull)
   owner        Employee?     @relation("BookingOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   installments Installment[]
+  payments     Payment[]
 
   @@index([plotId, status])
   @@index([customerId])
@@ -133,21 +137,108 @@ model Booking {
 
 /// The booking's payment schedule: the down payment (number 0) and the installments.
 model Installment {
-  id         String            @id @default(uuid(7)) @db.Uuid
-  bookingId  String            @db.Uuid
-  number     Int
-  kind       InstallmentKind
-  dueDate    DateTime          @db.Date
-  amount     Decimal           @db.Decimal(14, 2)
-  paidAmount Decimal           @default(0) @db.Decimal(14, 2)
-  lateFee    Decimal           @default(0) @db.Decimal(14, 2)
-  status     InstallmentStatus @default(DUE)
-  paidAt     DateTime?         @db.Timestamptz(3)
-  createdAt  DateTime          @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime          @updatedAt @db.Timestamptz(3)
+  id                  String            @id @default(uuid(7)) @db.Uuid
+  bookingId           String            @db.Uuid
+  number              Int
+  kind                InstallmentKind
+  dueDate             DateTime          @db.Date
+  amount              Decimal           @db.Decimal(14, 2)
+  paidAmount          Decimal           @default(0) @db.Decimal(14, 2)
+  lateFee             Decimal           @default(0) @db.Decimal(14, 2)
+  status              InstallmentStatus @default(DUE)
+  paidAt              DateTime?         @db.Timestamptz(3)
+  /// when the late fee was added (once, after due date + grace period)
+  lateFeeAppliedAt    DateTime?         @db.Timestamptz(3)
+  lateFeeWaivedReason String?
+  /// smallest "days before due" reminder already sent (7, 3, 1); 0 = overdue notice sent
+  reminderDays        Int?
+  createdAt           DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime          @updatedAt @db.Timestamptz(3)
 
-  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking     Booking             @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  allocations PaymentAllocation[]
 
   @@unique([bookingId, number])
   @@index([status, dueDate])
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  CHEQUE
+  BKASH
+  NAGAD
+  CARD
+}
+
+enum PaymentStatus {
+  /// entered, waiting for accounts to verify
+  PENDING
+  /// money received: receipt issued, applied to the schedule
+  VERIFIED
+  /// entry refused at verification (never counted)
+  REJECTED
+  /// verified earlier, then undone (e.g. a bounced cheque)
+  REVERSED
+}
+
+/**
+ * Money from a customer against a booking. Entry → verification (money receipt, applied to the
+ * installments oldest first) → posting. Never deleted: a mistake or bounced cheque is reversed.
+ */
+model Payment {
+  id            String        @id @default(uuid(7)) @db.Uuid
+  /// PAY-000001, at entry
+  paymentNo     String        @unique
+  /// MR-000001, issued at verification
+  receiptNo     String?       @unique
+  bookingId     String        @db.Uuid
+  customerId    String        @db.Uuid
+  amount        Decimal       @db.Decimal(14, 2)
+  method        PaymentMethod
+  /// transaction id, cheque number, ...
+  reference     String?
+  bankName      String?
+  chequeDate    DateTime?     @db.Date
+  /// the day the customer paid
+  paidOn        DateTime      @db.Date
+  note          String?
+  status        PaymentStatus @default(PENDING)
+  verifiedById  String?       @db.Uuid
+  verifiedAt    DateTime?     @db.Timestamptz(3)
+  rejectReason  String?
+  reversedById  String?       @db.Uuid
+  reversedAt    DateTime?     @db.Timestamptz(3)
+  reverseReason String?
+  /// data scope: copied from the booking (its sales executive + org)
+  ownerId       String?       @db.Uuid
+  teamId        String?       @db.Uuid
+  departmentId  String?       @db.Uuid
+  branchId      String?       @db.Uuid
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+  createdById   String?       @db.Uuid
+
+  booking     Booking             @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  customer    Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  allocations PaymentAllocation[]
+
+  @@index([bookingId, status])
+  @@index([status, paidOn])
+  @@index([customerId])
+}
+
+/// How a verified payment was applied to installments (undone exactly on reversal).
+model PaymentAllocation {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  paymentId     String   @db.Uuid
+  installmentId String   @db.Uuid
+  amount        Decimal  @db.Decimal(14, 2)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  payment     Payment     @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  installment Installment @relation(fields: [installmentId], references: [id], onDelete: Restrict)
+
+  @@index([paymentId])
+  @@index([installmentId])
 }

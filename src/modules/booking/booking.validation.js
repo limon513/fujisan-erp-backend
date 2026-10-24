@@ -42,6 +42,14 @@ const create = z
 
 const withdraw = z.object({ reason: optionalText(300) });
 
+const register = z.object({
+  registeredOn: dateOnly()
+    .optional()
+    .meta({ description: "Registration date (YYYY-MM-DD); default today" }),
+  deedNo: optionalText(60).meta({ example: "1234/2026" }),
+  note: optionalText(300),
+});
+
 const list = listQuerySchema({
   sortable: sortableFields,
   filters: {
@@ -52,4 +60,4 @@ const list = listQuerySchema({
   },
 });
 
-export const BookingValidation = { idParams, quote, create, withdraw, list };
+export const BookingValidation = { idParams, quote, create, withdraw, register, list };

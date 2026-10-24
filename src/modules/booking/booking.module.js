@@ -12,6 +12,7 @@ export default {
     resource: "booking",
     label: "Bookings",
     actions: ["view", "create", "edit", "export", "print"],
+    extra: [{ action: "register", label: "Register (plot sold)" }],
   }),
   // One approval per booking: the approver settles the discount (and may change it)
   approvalWorkflows: [

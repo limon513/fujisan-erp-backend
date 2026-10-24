@@ -7,7 +7,7 @@ import { fromPaisa, percentOf, roundToTaka, toPaisa } from "#core/money/money.js
 import { nextCode } from "#core/numbering/sequence.js";
 import { buildScopeWhere, isInScope } from "#core/rbac/scope.js";
 import { buildListArgs, paginationMeta } from "#core/utils/listQuery.js";
-import { dhakaDay } from "#core/utils/time.js";
+import { dhakaDate, dhakaDay } from "#core/utils/time.js";
 import { advanceStatus, logActivity } from "#modules/lead/lead.workflow.js";
 import { buildSchedule } from "#modules/payment-plan/payment-plan.schedule.js";
 import {
@@ -16,6 +16,7 @@ import {
   bookingListSelect,
   PLAN_TERMS,
 } from "./booking.constant.js";
+import { balanceOf } from "./booking.ledger.js";
 
 const invalid = (path, message) => AppError.unprocessable(message, [{ path, message }]);
 const taka = (value) => `৳${Number(value).toLocaleString("en-IN")}`;
@@ -308,8 +309,26 @@ const getById = async (access, id) => {
         select: { id: true, requestNo: true, status: true, approvedAmount: true },
       })
     : null;
+  const payments = await prisma.payment.findMany({
+    where: { bookingId: id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      paymentNo: true,
+      receiptNo: true,
+      amount: true,
+      method: true,
+      paidOn: true,
+      status: true,
+    },
+  });
   const { ownerId: _o, teamId: _t, departmentId: _d, branchId: _b, ...rest } = booking;
-  return { ...rest, approval };
+  return {
+    ...rest,
+    approval,
+    payments,
+    balance: balanceOf(booking.installments, dhakaDate()),
+  };
 };
 
 /** Live preview for the booking form: prices and the schedule (nothing is saved). */
@@ -459,4 +478,53 @@ const withdraw = async (access, id, { reason }) => {
   return getById(access, id);
 };
 
-export const BookingService = { list, getById, quote, create, withdraw };
+/** Deed registration: the booking is REGISTERED and the plot SOLD (client rule). */
+const register = async (access, id, { registeredOn, deedNo, note }) => {
+  const booking = await getById(access, id);
+  if (booking.status !== "CONFIRMED") {
+    throw AppError.conflict("Only a confirmed booking can be registered");
+  }
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.booking.updateMany({
+      where: { id, status: "CONFIRMED" },
+      data: {
+        status: "REGISTERED",
+        registeredOn: registeredOn ?? dhakaDate(),
+        deedNo: deedNo ?? null,
+        updatedById: access.actor.userId,
+      },
+    });
+    if (!count) throw AppError.conflict("Someone else just changed this booking");
+    const moved = await tx.plot.updateMany({
+      where: { id: booking.plot.id, status: "BOOKED" },
+      data: { status: "SOLD", statusChangedAt: new Date() },
+    });
+    if (moved.count) {
+      await tx.plotStatusHistory.create({
+        data: {
+          plotId: booking.plot.id,
+          fromStatus: "BOOKED",
+          toStatus: "SOLD",
+          refType: "REGISTRATION",
+          refId: id,
+          reason: [`${booking.bookingNo} registered`, deedNo && `deed ${deedNo}`, note]
+            .filter(Boolean)
+            .join(" · "),
+          changedById: access.actor.userId,
+        },
+      });
+    }
+    await recordAudit(
+      {
+        action: "BOOKING_REGISTERED",
+        entityType: "Booking",
+        entityId: id,
+        description: `Registered ${booking.bookingNo}${deedNo ? ` (deed ${deedNo})` : ""}; plot ${booking.plot.code} sold. Outstanding ${taka(booking.balance.outstanding)}`,
+      },
+      tx,
+    );
+  });
+  return getById(access, id);
+};
+
+export const BookingService = { list, getById, quote, create, withdraw, register };

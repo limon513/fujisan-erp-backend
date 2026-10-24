@@ -1,5 +1,6 @@
 import config from "#config/index.js";
 import logger from "#core/utils/logger.js";
+import { EmiService } from "#modules/emi/emi.service.js";
 import { FollowUpService } from "#modules/follow-up/follow-up.service.js";
 import { NotificationService } from "#modules/notification/notification.service.js";
 import { PlotHoldService } from "#modules/plot/plot.hold.service.js";
@@ -14,6 +15,8 @@ const JOBS = [
   { name: "plot-hold-expiry", everyMs: 60_000, run: () => PlotHoldService.expireDueHolds() },
   { name: "follow-up-reminders", everyMs: 60_000, run: () => FollowUpService.sendReminders() },
   { name: "site-visit-reminders", everyMs: 60_000, run: () => SiteVisitService.sendReminders() },
+  // Late fees and due-date reminders; hourly so a missed run catches up the same day
+  { name: "emi-daily", everyMs: 3_600_000, run: () => EmiService.runDaily() },
   { name: "notification-prune", everyMs: 6 * 3_600_000, run: () => NotificationService.prune() },
 ];
 

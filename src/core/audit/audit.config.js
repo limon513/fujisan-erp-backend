@@ -39,6 +39,11 @@ export const AUDITED_MODELS = {
   LeadSource: { label: "name" },
   PaymentPlan: { label: "name" },
   Booking: { label: "bookingNo" },
+  // Verification / reversal are recorded as their own events on the booking
+  Payment: {
+    label: "paymentNo",
+    ignore: ["status", "receiptNo", "verifiedById", "verifiedAt", "reversedById", "reversedAt"],
+  },
   Campaign: { label: "name" },
   // Round-robin bookkeeping changes on every assignment; the lead's timeline records those
   LeadAssignmentRule: { label: "name", ignore: ["nextIndex", "assignedCount", "lastAssignedAt"] },

@@ -29,4 +29,10 @@ const withdraw = async (req, res) =>
     data: await S.withdraw(access(req), id(req), req.body),
   });
 
-export const BookingController = { list, getById, quote, create, withdraw };
+const register = async (req, res) =>
+  sendResponse(res, {
+    message: "Booking registered",
+    data: await S.register(access(req), id(req), req.body),
+  });
+
+export const BookingController = { list, getById, quote, create, withdraw, register };

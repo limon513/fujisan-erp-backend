@@ -20,4 +20,11 @@ router.post(
   C.withdraw,
 );
 
+router.post(
+  "/:id/register",
+  authorize("booking.register"),
+  validate({ params: V.idParams, body: V.register }),
+  C.register,
+);
+
 export const BookingRoute = router;

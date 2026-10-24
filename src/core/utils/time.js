@@ -23,3 +23,17 @@ const dhakaFormat = new Intl.DateTimeFormat("en-GB", {
 
 /** "25 Oct, 10:30 am" in Dhaka time, for timeline and notification text. */
 export const formatDhaka = (date) => dhakaFormat.format(new Date(date));
+
+/** Today's Dhaka calendar date at UTC midnight (the convention for @db.Date columns). */
+export const dhakaDate = (now = new Date()) =>
+  new Date(dhakaDay(now).start.getTime() + DHAKA_OFFSET_MS);
+
+/** Whole days from `from` to `to` (both date-only values at UTC midnight). */
+export const daysBetween = (from, to) => Math.round((to.getTime() - from.getTime()) / DAY_MS);
+
+/** First day of `date`'s month and of the next one (date-only, UTC midnight). */
+export function monthOf(date) {
+  const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
+  const end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
+  return { start, end };
+}
