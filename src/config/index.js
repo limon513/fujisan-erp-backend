@@ -52,6 +52,9 @@ const envSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().optional(),
   S3_SECRET_ACCESS_KEY: z.string().optional(),
   MAX_UPLOAD_MB: z.coerce.number().positive().default(10),
+  // Interactive transactions run many small queries; against a far-away database (e.g. developing
+  // on a laptop against Neon) each is a network round trip, so allow more than Prisma's 5 s.
+  DB_TRANSACTION_TIMEOUT_MS: z.coerce.number().int().positive().default(20_000),
 });
 
 // S3_* settings fall back to the standard AWS variable names, so a provider's ready-made block
@@ -94,6 +97,7 @@ const config = Object.freeze({
   port: env.PORT,
   appName: env.APP_NAME,
   databaseUrl: env.DATABASE_URL,
+  dbTransactionTimeoutMs: env.DB_TRANSACTION_TIMEOUT_MS,
   corsOrigins: env.CORS_ORIGINS,
   enabledModules:
     env.ENABLED_MODULES.trim() === "*"
