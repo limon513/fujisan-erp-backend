@@ -63,7 +63,7 @@ layouts, holds with day limit + auto-release, sold on registration, single owner
 - ☑ 3.3a Payment plans: templates (down payment, monthly/quarterly/yearly installments, interest, grace + late fee, cancellation charge) with a live schedule preview and calculator
 - ☐ 3.3 Accounting engine: chart of accounts (seeded template), fiscal year, journal posting service
 - ☑ 3.4 Discount approval — folded into the booking approval (Sales Manager may change the discount); quotation later
-- ◐ 3.5 Booking (customer → plot → plan → discount → approval → confirmed with its schedule) — API ☑, screens ☐
+- ☑ 3.5 Booking (customer → plot → plan → discount → approval → confirmed with its schedule); registration (SOLD) comes with collections
 - ☐ 3.6 EMI schedule generator + overdue/late-fee/reminder jobs
 - ☐ 3.7 Collection: payment entry → verification → money receipt PDF → auto journal; cheque bounce & reversal
 - ☐ 3.8 Cancellation & refund with policy calculation + approvals + postings; ownership transfer
