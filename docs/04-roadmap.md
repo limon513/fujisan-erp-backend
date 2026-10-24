@@ -64,8 +64,8 @@ layouts, holds with day limit + auto-release, sold on registration, single owner
 - ☐ 3.3 Accounting engine: chart of accounts (seeded template), fiscal year, journal posting service
 - ☑ 3.4 Discount approval — folded into the booking approval (Sales Manager may change the discount); quotation later
 - ☑ 3.5 Booking (customer → plot → plan → discount → approval → confirmed with its schedule); registration (SOLD) comes with collections
-- ◐ 3.6 EMI: schedule (with booking), overdue list, late fee after grace (once), waive, reminders 7/3/1 days + overdue — API ☑, screens ☐
-- ◐ 3.7 Collection: entry → verification (money receipt, applied oldest first) → reversal (bounced cheque); registration (plot SOLD) — API ☑, screens ☐; auto journal with 3.3
+- ☑ 3.6 EMI: schedule (with booking), overdue / this month / later list, late fee after grace (once), waive, reminders 7/3/1 days + overdue
+- ☑ 3.7 Collection: entry → verification (money receipt, applied oldest first) → reversal (bounced cheque); printable money receipt; registration (plot SOLD) — auto journal comes with 3.3
 - ☐ 3.8 Cancellation & refund with policy calculation + approvals + postings; ownership transfer
 - ☐ 3.9 Commission calculation
 - ☐ 3.10 Sales & management dashboards, customer ledger, collection/outstanding reports
