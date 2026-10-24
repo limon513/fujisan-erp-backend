@@ -146,6 +146,7 @@ export const systemRoles = [
       ...EVERYONE,
       ...all(SALES, "BRANCH"),
       ["lead-assignment-rule.*", "ALL"],
+      ["payment-plan.view", "ALL"],
       ...each(INVENTORY_VIEW, "view", "ALL"),
       ["plot.hold", "ALL"],
       ["emi.view", "BRANCH"],
@@ -165,6 +166,7 @@ export const systemRoles = [
     level: 50,
     template: [
       ...EVERYONE,
+      ["payment-plan.view", "ALL"],
       ...all(SALES, "TEAM"),
       ...each(SALES, "delete", null),
       ...each(INVENTORY_VIEW, "view", "ALL"),
@@ -182,6 +184,7 @@ export const systemRoles = [
     level: 30,
     template: [
       ...EVERYONE,
+      ["payment-plan.view", "ALL"],
       ["lead.view", "OWN"],
       ["lead.create", "OWN"],
       ["lead.edit", "OWN"],
@@ -210,6 +213,7 @@ export const systemRoles = [
     level: 30,
     template: [
       ...EVERYONE,
+      ["payment-plan.view", "ALL"],
       ...all(["lead", "follow-up", "site-visit", "lead-source", "lead-assignment-rule"], "ALL"),
       ["lead.delete", null],
       ["customer.view", "ALL"],
@@ -227,6 +231,7 @@ export const systemRoles = [
     template: [
       ...EVERYONE,
       ...all(FINANCE, "ALL"),
+      ["payment-plan.*", "ALL"],
       ["booking.view", "ALL"],
       ["booking.approve", "ALL"],
       ["customer.view", "ALL"],

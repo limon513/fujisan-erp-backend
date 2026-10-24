@@ -37,6 +37,7 @@ export const AUDITED_MODELS = {
   Customer: { label: "fullName" },
   CustomerNominee: { label: "fullName" },
   LeadSource: { label: "name" },
+  PaymentPlan: { label: "name" },
   Campaign: { label: "name" },
   // Round-robin bookkeeping changes on every assignment; the lead's timeline records those
   LeadAssignmentRule: { label: "name", ignore: ["nextIndex", "assignedCount", "lastAssignedAt"] },

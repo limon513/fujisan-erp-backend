@@ -1,0 +1,52 @@
+// Sales terms: payment plan templates (down payment, installments, interest, late fee, cancellation).
+
+enum InstallmentFrequency {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+/// How a charge is given: a fixed amount in BDT, or a percentage of a base amount.
+enum ChargeType {
+  FIXED
+  PERCENT
+}
+
+/**
+ * A reusable set of payment terms, chosen at booking. Its values are copied into the booking, so
+ * editing a plan never changes bookings already made.
+ */
+model PaymentPlan {
+  id                      String               @id @default(uuid(7)) @db.Uuid
+  name                    String
+  description             String?
+  /// null = offered for every project
+  projectId               String?              @db.Uuid
+  isActive                Boolean              @default(true)
+  /// due at booking: FIXED amount, or PERCENT of the price
+  downPaymentType         ChargeType           @default(PERCENT)
+  downPaymentValue        Decimal              @db.Decimal(14, 2)
+  /// 0 with a 100% down payment = full payment
+  installmentCount        Int
+  frequency               InstallmentFrequency @default(MONTHLY)
+  /// flat yearly rate on the amount left after the down payment (0 = no interest)
+  interestRate            Decimal              @default(0) @db.Decimal(5, 2)
+  /// days after the due date before a late fee applies
+  gracePeriodDays         Int                  @default(0)
+  /// once per overdue installment: FIXED amount, or PERCENT of that installment
+  lateFeeType             ChargeType           @default(FIXED)
+  lateFeeValue            Decimal              @default(0) @db.Decimal(14, 2)
+  /// deducted on cancellation: FIXED amount, or PERCENT of the amount paid
+  cancellationChargeType  ChargeType           @default(PERCENT)
+  cancellationChargeValue Decimal              @default(0) @db.Decimal(14, 2)
+  sortOrder               Int                  @default(100)
+  createdAt               DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime             @updatedAt @db.Timestamptz(3)
+  createdById             String?              @db.Uuid
+  updatedById             String?              @db.Uuid
+  deletedAt               DateTime?            @db.Timestamptz(3)
+
+  project Project? @relation("ProjectPaymentPlans", fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, isActive])
+}

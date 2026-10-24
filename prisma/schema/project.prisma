@@ -46,6 +46,7 @@ model Project {
   interestedLeads Lead[]               @relation("LeadPreferredProject")
   siteVisits      SiteVisit[]          @relation("SiteVisitProject")
   assignmentRules LeadAssignmentRule[] @relation("AssignmentRuleProject")
+  paymentPlans    PaymentPlan[]        @relation("ProjectPaymentPlans")
 }
 
 model Block {

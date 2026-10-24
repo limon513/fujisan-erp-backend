@@ -146,9 +146,9 @@ These change the database design, so we need answers **before** the related phas
 **Before Phase 3 (revenue engine)**
 
 7. Discount limits per approval level (e.g. TL ≤ 2%, Sales Manager ≤ 5%, above → Director).
-8. Installment plans: fixed templates per project? Monthly only, or quarterly/custom too? Any interest?
-9. Late-fee policy: fixed / % / per day? Grace period?
-10. Cancellation deduction rules (fixed %, slab by time or paid amount?).
+8. ~~Installment plans~~ — answered 2026-10-24, see below.
+9. ~~Late-fee policy~~ — answered 2026-10-24, see below.
+10. ~~Cancellation deduction~~ — answered 2026-10-24, see below.
 11. Ownership transfer: allowed? fee?
 12. Commission: on booking or on collection? Split between executive / TL / manager?
 13. Revenue recognition (ask the accounts team): customer payments as "advance from customer" until
@@ -161,6 +161,17 @@ These change the database design, so we need answers **before** the related phas
 16. Attendance device model (ZKTeco etc.)? Salary structure components?
 17. SMS gateway, payment gateway (SSLCommerz / bKash PGW), WhatsApp Business account?
 18. Number of branches and expected users at launch.
+
+**Answered (2026-10-24) — payment plans**
+
+- Plans are templates ("dynamic and simple"): down payment fixed ৳ or % of price; installments
+  monthly, quarterly or yearly; an interest % field.
+- Each plan has a grace period (days) and a late fee, fixed ৳ or % — assumed charged once per
+  overdue installment after the grace period (to confirm).
+- Cancellation: a charge deducted from the refund, fixed ৳ or % — assumed % of the amount paid.
+- Interest assumed flat per year on the amount after the down payment (to confirm).
+- Still open: discount limits per approval level (Q7); the approval chain ships with 2% / 5% /
+  Director as an editable default.
 
 **Decided (2026-10-11)**
 
