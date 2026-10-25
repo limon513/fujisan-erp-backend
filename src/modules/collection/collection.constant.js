@@ -47,10 +47,12 @@ export const paymentDetailSelect = {
   reverseReason: true,
   createdById: true,
   verifiedById: true,
+  depositAccount: { select: { id: true, code: true, name: true } },
   allocations: {
     orderBy: { createdAt: "asc" },
     select: {
       amount: true,
+      lateFeePart: true,
       installment: { select: { number: true, kind: true, dueDate: true } },
     },
   },

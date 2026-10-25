@@ -1,0 +1,111 @@
+// Accounting: chart of accounts, fiscal years and the double-entry journal.
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum FiscalYearStatus {
+  OPEN
+  CLOSED
+}
+
+enum JournalKind {
+  /// entered by a person
+  MANUAL
+  /// posted by the system for a business event (payment verified, registration, ...)
+  AUTO
+  /// mirror of an earlier entry (payment reversed, journal reversed)
+  REVERSAL
+}
+
+/// Chart of accounts. Group accounts organise the tree; only non-group accounts take postings.
+model Account {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  code        String      @unique
+  name        String
+  type        AccountType
+  parentId    String?     @db.Uuid
+  isGroup     Boolean     @default(false)
+  isActive    Boolean     @default(true)
+  /// stable role of a seeded account used by automatic postings (CASH, CUSTOMER_ADVANCE, ...)
+  systemKey   String?     @unique
+  description String?
+  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
+  createdById String?     @db.Uuid
+  updatedById String?     @db.Uuid
+
+  parent   Account?      @relation("AccountTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Account[]     @relation("AccountTree")
+  lines    JournalLine[]
+  deposits Payment[]     @relation("PaymentDepositAccount")
+
+  @@index([parentId])
+  @@index([type])
+}
+
+/// Bangladesh: July–June by default (Company.fiscalYearStartMonth). Created on first posting.
+model FiscalYear {
+  id         String           @id @default(uuid(7)) @db.Uuid
+  /// "FY 2026-27"
+  name       String           @unique
+  startDate  DateTime         @unique @db.Date
+  endDate    DateTime         @db.Date
+  status     FiscalYearStatus @default(OPEN)
+  closedAt   DateTime?        @db.Timestamptz(3)
+  closedById String?          @db.Uuid
+  createdAt  DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime         @updatedAt @db.Timestamptz(3)
+
+  entries JournalEntry[]
+}
+
+/// One balanced journal entry (debits = credits, checked by the database at commit). Never edited.
+model JournalEntry {
+  id           String      @id @default(uuid(7)) @db.Uuid
+  /// JV-000001
+  entryNo      String      @unique
+  date         DateTime    @db.Date
+  fiscalYearId String      @db.Uuid
+  narration    String
+  kind         JournalKind
+  /// the business record behind an automatic entry, e.g. "Payment" + its id
+  sourceType   String?
+  sourceId     String?
+  /// a REVERSAL points at the entry it undoes
+  reversesId   String?     @unique @db.Uuid
+  createdById  String?     @db.Uuid
+  createdAt    DateTime    @default(now()) @db.Timestamptz(3)
+
+  fiscalYear FiscalYear    @relation(fields: [fiscalYearId], references: [id], onDelete: Restrict)
+  reverses   JournalEntry? @relation("JournalReversal", fields: [reversesId], references: [id], onDelete: Restrict)
+  reversedBy JournalEntry? @relation("JournalReversal")
+  lines      JournalLine[]
+
+  @@unique([sourceType, sourceId, kind])
+  @@index([date])
+}
+
+model JournalLine {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  entryId     String  @db.Uuid
+  accountId   String  @db.Uuid
+  debit       Decimal @default(0) @db.Decimal(14, 2)
+  credit      Decimal @default(0) @db.Decimal(14, 2)
+  description String?
+  /// customer sub-ledger (advances, receivables)
+  customerId  String? @db.Uuid
+  bookingId   String? @db.Uuid
+  lineNo      Int
+
+  entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([accountId])
+  @@index([entryId])
+  @@index([bookingId])
+}

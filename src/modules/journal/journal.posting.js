@@ -1,0 +1,277 @@
+import AppError from "#core/errors/AppError.js";
+import { fromPaisa, toPaisa } from "#core/money/money.js";
+import { nextCode } from "#core/numbering/sequence.js";
+import { dhakaDate } from "#core/utils/time.js";
+
+/**
+ * Double-entry posting. Every entry balances (also checked by the database at commit) and is never
+ * edited; mistakes are undone with a reversal. All functions take a transaction client.
+ */
+
+export const JOURNAL_SEQUENCE = { key: "JOURNAL", prefix: "JV-", padding: 6 };
+
+const invalid = (path, message) => AppError.unprocessable(message, [{ path, message }]);
+const taka = (paisa) => `৳${Number(fromPaisa(paisa)).toLocaleString("en-IN")}`;
+
+/** Where money of each method lands by default. */
+export const DEPOSIT_KEYS = {
+  CASH: "CASH",
+  BANK_TRANSFER: "BANK",
+  CHEQUE: "BANK",
+  CARD: "BANK",
+  BKASH: "BKASH",
+  NAGAD: "NAGAD",
+};
+
+/** An account by its system role (seeded). */
+export async function accountByKey(tx, key) {
+  const account = await tx.account.findUnique({ where: { systemKey: key } });
+  if (!account) throw new Error(`Account with system key ${key} is missing (run the seed)`);
+  return account;
+}
+
+/** The fiscal year containing `date`, created on first use (July–June by default). */
+export async function fiscalYearFor(tx, date) {
+  const existing = await tx.fiscalYear.findFirst({
+    where: { startDate: { lte: date }, endDate: { gte: date } },
+  });
+  if (existing) {
+    if (existing.status === "CLOSED") {
+      throw invalid("date", `${existing.name} is closed; post in an open fiscal year`);
+    }
+    return existing;
+  }
+  const company = await tx.company.findFirst({ select: { fiscalYearStartMonth: true } });
+  const startMonth = (company?.fiscalYearStartMonth ?? 7) - 1;
+  const year = date.getUTCMonth() >= startMonth ? date.getUTCFullYear() : date.getUTCFullYear() - 1;
+  const startDate = new Date(Date.UTC(year, startMonth, 1));
+  const endDate = new Date(Date.UTC(year + 1, startMonth, 0));
+  const name = startMonth === 0 ? `FY ${year}` : `FY ${year}-${String(year + 1).slice(2)}`;
+  // Parallel first postings of a year: one creates it, the other reads it back
+  return tx.fiscalYear.upsert({
+    where: { startDate },
+    update: {},
+    create: { name, startDate, endDate },
+  });
+}
+
+/**
+ * Posts a balanced entry.
+ * @param entry { date, narration, kind, sourceType?, sourceId?, reversesId?, lines, actor? }
+ *   lines: [{ accountId, debit?, credit?, description?, customerId?, bookingId? }] (amounts in BDT)
+ */
+export async function postEntry(
+  tx,
+  { date, narration, kind, sourceType, sourceId, reversesId, lines, actor },
+) {
+  const clean = lines
+    .map((line) => ({
+      ...line,
+      debit: toPaisa(line.debit ?? 0),
+      credit: toPaisa(line.credit ?? 0),
+    }))
+    .filter((line) => line.debit > 0n || line.credit > 0n);
+  if (clean.length < 2) throw invalid("lines", "An entry needs at least two lines");
+  clean.forEach((line, index) => {
+    if (line.debit > 0n && line.credit > 0n) {
+      throw invalid(`lines.${index}`, "A line is either a debit or a credit");
+    }
+    if (line.debit < 0n || line.credit < 0n)
+      throw invalid(`lines.${index}`, "Amounts can't be negative");
+  });
+  const debit = clean.reduce((sum, l) => sum + l.debit, 0n);
+  const credit = clean.reduce((sum, l) => sum + l.credit, 0n);
+  if (debit !== credit) {
+    throw invalid("lines", `Debits (${taka(debit)}) and credits (${taka(credit)}) must be equal`);
+  }
+
+  const accounts = await tx.account.findMany({
+    where: { id: { in: [...new Set(clean.map((l) => l.accountId))] } },
+    select: { id: true, code: true, isGroup: true, isActive: true },
+  });
+  clean.forEach((line, index) => {
+    const account = accounts.find((a) => a.id === line.accountId);
+    if (!account) throw invalid(`lines.${index}.accountId`, "Account not found");
+    if (account.isGroup)
+      throw invalid(
+        `lines.${index}.accountId`,
+        `${account.code} is a group; post to an account under it`,
+      );
+    if (!account.isActive)
+      throw invalid(`lines.${index}.accountId`, `${account.code} is switched off`);
+  });
+
+  const fiscalYear = await fiscalYearFor(tx, date);
+  return tx.journalEntry.create({
+    data: {
+      entryNo: await nextCode(tx, JOURNAL_SEQUENCE),
+      date,
+      fiscalYearId: fiscalYear.id,
+      narration,
+      kind,
+      sourceType: sourceType ?? null,
+      sourceId: sourceId == null ? null : String(sourceId),
+      reversesId: reversesId ?? null,
+      createdById: actor?.userId ?? null,
+      lines: {
+        create: clean.map((line, index) => ({
+          accountId: line.accountId,
+          debit: fromPaisa(line.debit),
+          credit: fromPaisa(line.credit),
+          description: line.description ?? null,
+          customerId: line.customerId ?? null,
+          bookingId: line.bookingId ?? null,
+          lineNo: index + 1,
+        })),
+      },
+    },
+    include: { lines: true },
+  });
+}
+
+/** Posts the mirror of `original` (debits ↔ credits). An entry can be reversed only once. */
+export async function reverseEntry(tx, original, { date, narration, sourceType, sourceId, actor }) {
+  if (original.kind === "REVERSAL") throw AppError.conflict("A reversal can't be reversed");
+  const already = await tx.journalEntry.findUnique({ where: { reversesId: original.id } });
+  if (already)
+    throw AppError.conflict(`${original.entryNo} was already reversed by ${already.entryNo}`);
+  const lines =
+    original.lines ?? (await tx.journalLine.findMany({ where: { entryId: original.id } }));
+  return postEntry(tx, {
+    date,
+    narration,
+    kind: "REVERSAL",
+    sourceType,
+    sourceId,
+    reversesId: original.id,
+    actor,
+    lines: lines.map((line) => ({
+      accountId: line.accountId,
+      debit: line.credit,
+      credit: line.debit,
+      description: line.description,
+      customerId: line.customerId,
+      bookingId: line.bookingId,
+    })),
+  });
+}
+
+// ---- Business postings ----------------------------------------------------------------------
+
+/** Deposit account chosen at verification, else the default for the payment method. */
+export async function depositAccountFor(tx, method, accountId) {
+  if (!accountId) return accountByKey(tx, DEPOSIT_KEYS[method]);
+  const account = await tx.account.findUnique({ where: { id: accountId } });
+  if (!account || account.type !== "ASSET" || account.isGroup || !account.isActive) {
+    throw invalid("depositAccountId", "Choose an active cash, bank or mobile account");
+  }
+  return account;
+}
+
+/**
+ * Payment verified: Dr deposit account; Cr Customer advance (or Customer receivable once the booking
+ * is registered) for the installment part, Cr Late fee income for the late-fee part.
+ */
+export async function postPaymentVerified(tx, paymentId, actor) {
+  const payment = await tx.payment.findUnique({
+    where: { id: paymentId },
+    include: {
+      allocations: true,
+      booking: {
+        select: { id: true, bookingNo: true, status: true, plot: { select: { code: true } } },
+      },
+      customer: { select: { id: true, fullName: true } },
+    },
+  });
+  const deposit = await depositAccountFor(tx, payment.method, payment.depositAccountId);
+  const lateFee = payment.allocations.reduce((sum, a) => sum + toPaisa(a.lateFeePart), 0n);
+  const installment = toPaisa(payment.amount) - lateFee;
+  const customerSide = await accountByKey(
+    tx,
+    payment.booking.status === "REGISTERED" ? "CUSTOMER_RECEIVABLE" : "CUSTOMER_ADVANCE",
+  );
+  const party = { customerId: payment.customerId, bookingId: payment.bookingId };
+  return postEntry(tx, {
+    date: payment.paidOn,
+    narration: `${payment.receiptNo}: ${payment.customer.fullName}, ${payment.booking.bookingNo} (plot ${payment.booking.plot.code})`,
+    kind: "AUTO",
+    sourceType: "Payment",
+    sourceId: payment.id,
+    actor,
+    lines: [
+      { accountId: deposit.id, debit: payment.amount, ...party },
+      { accountId: customerSide.id, credit: fromPaisa(installment), ...party },
+      ...(lateFee > 0n
+        ? [
+            {
+              accountId: (await accountByKey(tx, "LATE_FEE_INCOME")).id,
+              credit: fromPaisa(lateFee),
+              ...party,
+            },
+          ]
+        : []),
+    ],
+  });
+}
+
+/** Payment reversed: the mirror of its verification entry (if it was posted). */
+export async function postPaymentReversed(tx, paymentId, actor) {
+  const original = await tx.journalEntry.findUnique({
+    where: {
+      sourceType_sourceId_kind: { sourceType: "Payment", sourceId: paymentId, kind: "AUTO" },
+    },
+    include: { lines: true },
+  });
+  if (!original) return null;
+  const payment = await tx.payment.findUnique({ where: { id: paymentId } });
+  return reverseEntry(tx, original, {
+    date: dhakaDate(),
+    narration: `Reversal of ${payment.receiptNo}: ${payment.reverseReason ?? ""}`.trim(),
+    sourceType: "Payment",
+    sourceId: paymentId,
+    actor,
+  });
+}
+
+/** Customer-advance balance held for a booking (credits − debits), in paisa. */
+async function advanceHeld(tx, bookingId, advanceAccountId) {
+  const sums = await tx.journalLine.aggregate({
+    where: { bookingId, accountId: advanceAccountId },
+    _sum: { debit: true, credit: true },
+  });
+  return toPaisa(sums._sum.credit ?? 0) - toPaisa(sums._sum.debit ?? 0);
+}
+
+/**
+ * Registration (the plot is sold): revenue is recognised. The advance held moves out of
+ * liabilities; what is still to be paid becomes a receivable.
+ *   Dr Customer advance (held) + Dr Customer receivable (rest) = Cr Plot sales (net price) + Cr Interest
+ */
+export async function postRegistration(tx, bookingId, actor) {
+  const booking = await tx.booking.findUnique({
+    where: { id: bookingId },
+    include: { plot: { select: { code: true } }, customer: { select: { fullName: true } } },
+  });
+  const [advance, receivable, sales, interest] = await Promise.all(
+    ["CUSTOMER_ADVANCE", "CUSTOMER_RECEIVABLE", "SALES_REVENUE", "INTEREST_INCOME"].map((key) =>
+      accountByKey(tx, key),
+    ),
+  );
+  const held = await advanceHeld(tx, booking.id, advance.id);
+  const total = toPaisa(booking.totalPayable);
+  const party = { customerId: booking.customerId, bookingId: booking.id };
+  return postEntry(tx, {
+    date: booking.registeredOn ?? dhakaDate(),
+    narration: `Registration of ${booking.bookingNo}: plot ${booking.plot.code} sold to ${booking.customer.fullName}`,
+    kind: "AUTO",
+    sourceType: "Booking",
+    sourceId: booking.id,
+    actor,
+    lines: [
+      { accountId: advance.id, debit: fromPaisa(held), ...party },
+      { accountId: receivable.id, debit: fromPaisa(total - held), ...party },
+      { accountId: sales.id, credit: booking.netPrice, ...party },
+      { accountId: interest.id, credit: booking.interestAmount, ...party },
+    ],
+  });
+}

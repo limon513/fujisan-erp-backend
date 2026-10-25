@@ -59,7 +59,7 @@ export async function createUser({
   });
 }
 
-/** Syncs the real permission catalog and system roles into the test database (like the seed). */
+/** Syncs the permission catalog, system roles and chart of accounts into the test database (like the seed). */
 export async function seedAccessControl() {
   const [{ discoverModules }, { systemRoles }, { buildCatalog, syncAccessControl }] =
     await Promise.all([
@@ -69,6 +69,9 @@ export async function seedAccessControl() {
     ]);
   const catalog = buildCatalog(await discoverModules());
   await prisma.$transaction((tx) => syncAccessControl(tx, { catalog, roles: systemRoles }));
+  // Automatic postings need the chart of accounts
+  const { syncChartOfAccounts } = await import("../../prisma/seed/core/chartOfAccounts.js");
+  await prisma.$transaction((tx) => syncChartOfAccounts(tx));
 }
 
 /** Signs in and returns an Authorization header object. */

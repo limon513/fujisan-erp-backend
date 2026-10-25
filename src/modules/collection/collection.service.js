@@ -9,6 +9,11 @@ import { buildListArgs, paginationMeta } from "#core/utils/listQuery.js";
 import { dhakaDate } from "#core/utils/time.js";
 import { notifyEmployee } from "#modules/lead/lead.workflow.js";
 import {
+  depositAccountFor,
+  postPaymentReversed,
+  postPaymentVerified,
+} from "#modules/journal/journal.posting.js";
+import {
   allocate,
   lockBooking,
   outstandingOf,
@@ -111,8 +116,14 @@ const getById = async (access, id) => {
     return user ? { id: user.id, name: nameOf(user) } : null;
   };
   const { createdById, verifiedById, ...rest } = payment;
+  const journal = await prisma.journalEntry.findMany({
+    where: { sourceType: "Payment", sourceId: id },
+    orderBy: { createdAt: "asc" },
+    select: { id: true, entryNo: true, kind: true, date: true },
+  });
   return {
     ...rest,
+    journal,
     amountInWords: takaInWords(payment.amount),
     enteredBy: person(createdById),
     verifiedBy: person(verifiedById),
@@ -179,7 +190,7 @@ const create = async (access, input) => {
  * Accounts confirm the money arrived: issues the money receipt number and applies the amount to
  * the schedule, oldest first. The person who entered it can't verify it (unless Super Admin).
  */
-const verify = async (access, id) => {
+const verify = async (access, id, { depositAccountId } = {}) => {
   const { actor } = access;
   const payment = await findPayment(access, id);
   if (payment.status !== "PENDING")
@@ -196,7 +207,10 @@ const verify = async (access, id) => {
       data: { status: "VERIFIED", receiptNo, verifiedById: actor.userId, verifiedAt: new Date() },
     });
     if (!count) throw AppError.conflict("Someone else just handled this payment");
+    const deposit = await depositAccountFor(tx, payment.method, depositAccountId);
+    await tx.payment.update({ where: { id }, data: { depositAccountId: deposit.id } });
     await allocate(tx, payment);
+    await postPaymentVerified(tx, id, actor);
     await recordAudit(
       {
         action: "PAYMENT_VERIFIED",
@@ -253,6 +267,7 @@ const reverse = async (access, id, { reason }) => {
     });
     if (!count) throw AppError.conflict("Someone else just handled this payment");
     await unallocate(tx, id);
+    await postPaymentReversed(tx, id, actor);
     await recordAudit(
       {
         action: "PAYMENT_REVERSED",

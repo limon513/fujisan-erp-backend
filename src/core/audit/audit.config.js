@@ -38,6 +38,8 @@ export const AUDITED_MODELS = {
   CustomerNominee: { label: "fullName" },
   LeadSource: { label: "name" },
   PaymentPlan: { label: "name" },
+  Account: { label: "name" },
+  FiscalYear: { label: "name" },
   Booking: { label: "bookingNo" },
   // Verification / reversal are recorded as their own events on the booking
   Payment: {

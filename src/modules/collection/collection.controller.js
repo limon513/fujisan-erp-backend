@@ -21,7 +21,10 @@ const create = async (req, res) =>
   });
 
 const verify = async (req, res) =>
-  sendResponse(res, { message: "Payment verified", data: await S.verify(access(req), id(req)) });
+  sendResponse(res, {
+    message: "Payment verified",
+    data: await S.verify(access(req), id(req), req.body ?? {}),
+  });
 
 const reject = async (req, res) =>
   sendResponse(res, {

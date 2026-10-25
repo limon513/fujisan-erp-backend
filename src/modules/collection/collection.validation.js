@@ -27,6 +27,12 @@ const create = z
     }
   });
 
+const verify = z.object({
+  depositAccountId: z.uuid().optional().meta({
+    description: "Cash / bank / mobile account the money went into; default by payment method",
+  }),
+});
+
 const reason = z.object({ reason: z.string().trim().min(3, "Give a reason").max(300) });
 
 const list = listQuerySchema({
@@ -41,4 +47,4 @@ const list = listQuerySchema({
   },
 });
 
-export const CollectionValidation = { idParams, create, reason, list };
+export const CollectionValidation = { idParams, create, verify, reason, list };

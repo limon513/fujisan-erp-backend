@@ -70,10 +70,10 @@ defineRoute({
   method: "post",
   path: "/collections/:id/verify",
   tags,
-  summary: "Verify: issue the money receipt and apply the amount",
+  summary: "Verify: issue the money receipt, apply the amount and post it",
   description:
-    "Requires `collection.verify`; not by whoever entered it (except Super Admin). Applied to the schedule oldest first (down payment, then installments with their late fees).",
-  request: { params: V.idParams },
+    "Requires `collection.verify`; not by whoever entered it (except Super Admin). Applied to the schedule oldest first (down payment, then installments with their late fees). Posts Dr deposit account / Cr Customer advance (Customer receivable once registered) and Late fee income.",
+  request: { params: V.idParams, body: V.verify },
   response: Payment,
   errors: [400, 401, 403, 404, 409, 422],
 });

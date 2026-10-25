@@ -12,6 +12,7 @@ import { discoverModules } from "../../src/routes/index.js";
 import { systemRoles } from "./core/roles.js";
 import { buildCatalog, syncAccessControl } from "./core/accessControl.js";
 import { syncApprovalWorkflows } from "./core/approvals.js";
+import { syncChartOfAccounts } from "./core/chartOfAccounts.js";
 import { toCode } from "../../src/modules/lead-source/lead-source.constant.js";
 
 const clientName = process.env.SEED_CLIENT || "fujisan";
@@ -104,6 +105,12 @@ async function main() {
     TX_OPTIONS,
   );
   console.log(`  approval workflows: +${approvals.created}`);
+
+  const accounts = await prisma.$transaction(
+    (tx) => syncChartOfAccounts(tx, client.chartOfAccounts),
+    TX_OPTIONS,
+  );
+  if (accounts) console.log(`  chart of accounts: +${accounts}`);
 
   await seedSuperAdmin();
   console.log("Seed complete");

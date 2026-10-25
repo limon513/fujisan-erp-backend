@@ -2,6 +2,7 @@ import config from "#config/index.js";
 import logger from "#core/utils/logger.js";
 import { EmiService } from "#modules/emi/emi.service.js";
 import { FollowUpService } from "#modules/follow-up/follow-up.service.js";
+import { JournalService } from "#modules/journal/journal.service.js";
 import { NotificationService } from "#modules/notification/notification.service.js";
 import { PlotHoldService } from "#modules/plot/plot.hold.service.js";
 import { SiteVisitService } from "#modules/site-visit/site-visit.service.js";
@@ -17,6 +18,8 @@ const JOBS = [
   { name: "site-visit-reminders", everyMs: 60_000, run: () => SiteVisitService.sendReminders() },
   // Late fees and due-date reminders; hourly so a missed run catches up the same day
   { name: "emi-daily", everyMs: 3_600_000, run: () => EmiService.runDaily() },
+  // Posts payments / registrations from before accounting existed (no-op once caught up)
+  { name: "accounting-backfill", everyMs: 6 * 3_600_000, run: () => JournalService.backfill() },
   { name: "notification-prune", everyMs: 6 * 3_600_000, run: () => NotificationService.prune() },
 ];
 

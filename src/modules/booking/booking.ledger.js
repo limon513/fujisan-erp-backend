@@ -42,10 +42,15 @@ export async function allocate(tx, payment) {
       where: { id: installment.id },
       data: { paidAmount: fromPaisa(paid), status, paidAt: status === "PAID" ? new Date() : null },
     });
+    // The installment amount is paid first, its late fee last
+    const before = toPaisa(installment.paidAmount);
+    const amountLeft = toPaisa(installment.amount) - before;
+    const towardsAmount = amountLeft > 0n ? (take < amountLeft ? take : amountLeft) : 0n;
     allocations.push({
       paymentId: payment.id,
       installmentId: installment.id,
       amount: fromPaisa(take),
+      lateFeePart: fromPaisa(take - towardsAmount),
     });
     left -= take;
   }

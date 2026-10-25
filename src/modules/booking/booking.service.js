@@ -10,6 +10,7 @@ import { buildListArgs, paginationMeta } from "#core/utils/listQuery.js";
 import { dhakaDate, dhakaDay } from "#core/utils/time.js";
 import { advanceStatus, logActivity } from "#modules/lead/lead.workflow.js";
 import { buildSchedule } from "#modules/payment-plan/payment-plan.schedule.js";
+import { postRegistration } from "#modules/journal/journal.posting.js";
 import {
   BOOKING_SEQUENCE,
   bookingDetailSelect,
@@ -322,11 +323,16 @@ const getById = async (access, id) => {
       status: true,
     },
   });
+  const journal = await prisma.journalEntry.findMany({
+    where: { sourceType: "Booking", sourceId: id },
+    select: { id: true, entryNo: true, kind: true, date: true },
+  });
   const { ownerId: _o, teamId: _t, departmentId: _d, branchId: _b, ...rest } = booking;
   return {
     ...rest,
     approval,
     payments,
+    journal,
     balance: balanceOf(booking.installments, dhakaDate()),
   };
 };
@@ -514,6 +520,7 @@ const register = async (access, id, { registeredOn, deedNo, note }) => {
         },
       });
     }
+    await postRegistration(tx, id, access.actor);
     await recordAudit(
       {
         action: "BOOKING_REGISTERED",

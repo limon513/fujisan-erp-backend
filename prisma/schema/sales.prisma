@@ -187,41 +187,44 @@ enum PaymentStatus {
  * installments oldest first) → posting. Never deleted: a mistake or bounced cheque is reversed.
  */
 model Payment {
-  id            String        @id @default(uuid(7)) @db.Uuid
+  id               String        @id @default(uuid(7)) @db.Uuid
   /// PAY-000001, at entry
-  paymentNo     String        @unique
+  paymentNo        String        @unique
   /// MR-000001, issued at verification
-  receiptNo     String?       @unique
-  bookingId     String        @db.Uuid
-  customerId    String        @db.Uuid
-  amount        Decimal       @db.Decimal(14, 2)
-  method        PaymentMethod
+  receiptNo        String?       @unique
+  bookingId        String        @db.Uuid
+  customerId       String        @db.Uuid
+  amount           Decimal       @db.Decimal(14, 2)
+  method           PaymentMethod
   /// transaction id, cheque number, ...
-  reference     String?
-  bankName      String?
-  chequeDate    DateTime?     @db.Date
+  reference        String?
+  bankName         String?
+  chequeDate       DateTime?     @db.Date
   /// the day the customer paid
-  paidOn        DateTime      @db.Date
-  note          String?
-  status        PaymentStatus @default(PENDING)
-  verifiedById  String?       @db.Uuid
-  verifiedAt    DateTime?     @db.Timestamptz(3)
-  rejectReason  String?
-  reversedById  String?       @db.Uuid
-  reversedAt    DateTime?     @db.Timestamptz(3)
-  reverseReason String?
+  paidOn           DateTime      @db.Date
+  note             String?
+  status           PaymentStatus @default(PENDING)
+  /// where the money went (cash in hand, a bank or mobile account), chosen at verification
+  depositAccountId String?       @db.Uuid
+  verifiedById     String?       @db.Uuid
+  verifiedAt       DateTime?     @db.Timestamptz(3)
+  rejectReason     String?
+  reversedById     String?       @db.Uuid
+  reversedAt       DateTime?     @db.Timestamptz(3)
+  reverseReason    String?
   /// data scope: copied from the booking (its sales executive + org)
-  ownerId       String?       @db.Uuid
-  teamId        String?       @db.Uuid
-  departmentId  String?       @db.Uuid
-  branchId      String?       @db.Uuid
-  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
-  createdById   String?       @db.Uuid
+  ownerId          String?       @db.Uuid
+  teamId           String?       @db.Uuid
+  departmentId     String?       @db.Uuid
+  branchId         String?       @db.Uuid
+  createdAt        DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @db.Timestamptz(3)
+  createdById      String?       @db.Uuid
 
-  booking     Booking             @relation(fields: [bookingId], references: [id], onDelete: Restrict)
-  customer    Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  allocations PaymentAllocation[]
+  booking        Booking             @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  customer       Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  depositAccount Account?            @relation("PaymentDepositAccount", fields: [depositAccountId], references: [id], onDelete: Restrict)
+  allocations    PaymentAllocation[]
 
   @@index([bookingId, status])
   @@index([status, paidOn])
@@ -234,6 +237,8 @@ model PaymentAllocation {
   paymentId     String   @db.Uuid
   installmentId String   @db.Uuid
   amount        Decimal  @db.Decimal(14, 2)
+  /// part of `amount` that paid the installment's late fee (the amount is paid first)
+  lateFeePart   Decimal  @default(0) @db.Decimal(14, 2)
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
 
   payment     Payment     @relation(fields: [paymentId], references: [id], onDelete: Restrict)
