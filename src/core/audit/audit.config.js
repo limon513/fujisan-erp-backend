@@ -41,6 +41,7 @@ export const AUDITED_MODELS = {
   Account: { label: "name" },
   FiscalYear: { label: "name" },
   Booking: { label: "bookingNo" },
+  Cancellation: { label: "cancellationNo", ignore: ["status", "approvedAt", "refundedAt"] },
   // Verification / reversal are recorded as their own events on the booking
   Payment: {
     label: "paymentNo",

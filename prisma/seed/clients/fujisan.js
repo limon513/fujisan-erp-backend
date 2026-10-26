@@ -39,5 +39,9 @@ export default {
    */
   approvalChains: {
     BOOKING: [{ name: "Sales Manager", approverType: "ROLE", role: "sales-manager" }],
+    CANCELLATION: [
+      { name: "Sales Manager", approverType: "ROLE", role: "sales-manager" },
+      { name: "Accounts Manager", approverType: "ROLE", role: "accounts-manager" },
+    ],
   },
 };

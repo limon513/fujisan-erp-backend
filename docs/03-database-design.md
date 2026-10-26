@@ -231,7 +231,7 @@ Earlier sketch: **EMI**
 
 **Cancellation & refund**
 
-- `Cancellation`: bookingId, requestedAt, reason, totalPaid, deductionAmount, cancellationCharge, refundableAmount, policySnapshot JSON (the rule used, so the math is reproducible), status (REQUESTED, CALCULATED, APPROVED, REFUND_PENDING, COMPLETED, REJECTED), approvalRequestId.
+- `Cancellation` (3.8, built): cancellationNo ✱ (CN-), bookingId (partial unique while PENDING_APPROVAL/APPROVED), reason, requestedOn, totalPaid (installment money, late fees excluded), chargeAmount + refundAmount (CHECK sum = totalPaid; the approver may change the refund), policy JSON (plan terms used), status (PENDING_APPROVAL, APPROVED, REFUNDED, REJECTED, WITHDRAWN), approvalRequestId, refund payout (paidOn, method, reference, refundAccountId), booking's org stamp. Approval: booking CANCELLED, unpaid installments WAIVED, plot AVAILABLE, Dr Customer advance / Cr Cancellation charge income + Cr Customer refunds payable; payout: Dr Refunds payable / Cr bank. Confirmed bookings only; no payments while pending.
 - `Refund`: cancellationId, amount, method, paidAt, paidById, journalEntryId, status.
 
 **Accounting engine** (double entry)

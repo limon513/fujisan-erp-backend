@@ -275,3 +275,60 @@ export async function postRegistration(tx, bookingId, actor) {
     ],
   });
 }
+
+/**
+ * Cancellation approved: the advance held is released.
+ *   Dr Customer advance (paid) = Cr Cancellation charge income (charge) + Cr Customer refunds payable (refund)
+ */
+export async function postCancellation(tx, cancellationId, actor) {
+  const c = await tx.cancellation.findUnique({
+    where: { id: cancellationId },
+    include: {
+      booking: {
+        include: { plot: { select: { code: true } }, customer: { select: { fullName: true } } },
+      },
+    },
+  });
+  if (toPaisa(c.totalPaid) === 0n) return null;
+  const [advance, income, payable] = await Promise.all(
+    ["CUSTOMER_ADVANCE", "CANCELLATION_INCOME", "REFUND_PAYABLE"].map((key) =>
+      accountByKey(tx, key),
+    ),
+  );
+  const party = { customerId: c.booking.customerId, bookingId: c.bookingId };
+  return postEntry(tx, {
+    date: dhakaDate(),
+    narration: `${c.cancellationNo}: ${c.booking.bookingNo} (plot ${c.booking.plot.code}) cancelled, ${c.booking.customer.fullName}`,
+    kind: "AUTO",
+    sourceType: "Cancellation",
+    sourceId: c.id,
+    actor,
+    lines: [
+      { accountId: advance.id, debit: c.totalPaid, ...party },
+      { accountId: income.id, credit: c.chargeAmount, ...party },
+      { accountId: payable.id, credit: c.refundAmount, ...party },
+    ],
+  });
+}
+
+/** Refund paid out: Dr Customer refunds payable / Cr the cash or bank account it was paid from. */
+export async function postRefundPaid(tx, cancellationId, actor) {
+  const c = await tx.cancellation.findUnique({
+    where: { id: cancellationId },
+    include: { booking: { include: { customer: { select: { fullName: true } } } } },
+  });
+  const payable = await accountByKey(tx, "REFUND_PAYABLE");
+  const party = { customerId: c.booking.customerId, bookingId: c.bookingId };
+  return postEntry(tx, {
+    date: c.refundPaidOn,
+    narration: `Refund for ${c.cancellationNo} to ${c.booking.customer.fullName}${c.refundReference ? ` (${c.refundReference})` : ""}`,
+    kind: "AUTO",
+    sourceType: "Refund",
+    sourceId: c.id,
+    actor,
+    lines: [
+      { accountId: payable.id, debit: c.refundAmount, ...party },
+      { accountId: c.refundAccountId, credit: c.refundAmount, ...party },
+    ],
+  });
+}

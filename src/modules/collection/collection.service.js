@@ -154,6 +154,15 @@ const create = async (access, input) => {
     throw invalid("bookingId", "Payments are taken on confirmed bookings only");
   }
 
+  const cancelling = await prisma.cancellation.count({
+    where: { bookingId: booking.id, status: "PENDING_APPROVAL" },
+  });
+  if (cancelling)
+    throw invalid(
+      "bookingId",
+      "This booking is being cancelled; no payments until that is decided",
+    );
+
   const [owed, pending] = await Promise.all([
     outstandingOf(prisma, booking.id),
     prisma.payment.aggregate({

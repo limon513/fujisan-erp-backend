@@ -120,14 +120,15 @@ model Booking {
   createdById       String?       @db.Uuid
   updatedById       String?       @db.Uuid
 
-  plot         Plot          @relation(fields: [plotId], references: [id], onDelete: Restrict)
-  project      Project       @relation("ProjectBookings", fields: [projectId], references: [id], onDelete: Restrict)
-  customer     Customer      @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  lead         Lead?         @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  paymentPlan  PaymentPlan?  @relation(fields: [paymentPlanId], references: [id], onDelete: SetNull)
-  owner        Employee?     @relation("BookingOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  installments Installment[]
-  payments     Payment[]
+  plot          Plot           @relation(fields: [plotId], references: [id], onDelete: Restrict)
+  project       Project        @relation("ProjectBookings", fields: [projectId], references: [id], onDelete: Restrict)
+  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lead          Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  paymentPlan   PaymentPlan?   @relation(fields: [paymentPlanId], references: [id], onDelete: SetNull)
+  owner         Employee?      @relation("BookingOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  installments  Installment[]
+  payments      Payment[]
+  cancellations Cancellation[]
 
   @@index([plotId, status])
   @@index([customerId])
@@ -246,4 +247,60 @@ model PaymentAllocation {
 
   @@index([paymentId])
   @@index([installmentId])
+}
+
+enum CancellationStatus {
+  /// waiting for the CANCELLATION approval; the booking still stands
+  PENDING_APPROVAL
+  /// booking cancelled, plot released; the refund is still to be paid
+  APPROVED
+  /// refund paid (or nothing to refund)
+  REFUNDED
+  REJECTED
+  WITHDRAWN
+}
+
+/**
+ * Cancellation of a confirmed booking: the refund is what was paid minus the plan's cancellation
+ * charge (the approver may change it). Approval cancels the booking and frees the plot.
+ */
+model Cancellation {
+  id                String             @id @default(uuid(7)) @db.Uuid
+  /// CN-000001
+  cancellationNo    String             @unique
+  bookingId         String             @db.Uuid
+  reason            String
+  requestedOn       DateTime           @db.Date
+  /// installment money paid (late fees excluded), at request; recomputed at approval
+  totalPaid         Decimal            @db.Decimal(14, 2)
+  /// as calculated by the policy / as approved
+  chargeAmount      Decimal            @db.Decimal(14, 2)
+  refundAmount      Decimal            @db.Decimal(14, 2)
+  /// the cancellation terms used (from the booking's plan terms)
+  policy            Json
+  status            CancellationStatus @default(PENDING_APPROVAL)
+  approvalRequestId String?            @db.Uuid
+  approvedAt        DateTime?          @db.Timestamptz(3)
+  closeReason       String?
+  // Refund payout
+  refundPaidOn      DateTime?          @db.Date
+  refundMethod      PaymentMethod?
+  refundReference   String?
+  refundAccountId   String?            @db.Uuid
+  refundedById      String?            @db.Uuid
+  refundedAt        DateTime?          @db.Timestamptz(3)
+  /// data scope: the booking's sales executive (+ org)
+  ownerId           String?            @db.Uuid
+  teamId            String?            @db.Uuid
+  departmentId      String?            @db.Uuid
+  branchId          String?            @db.Uuid
+  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
+  createdById       String?            @db.Uuid
+
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  refundAccount Account? @relation("CancellationRefundAccount", fields: [refundAccountId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId, status])
+  @@index([status, createdAt])
 }

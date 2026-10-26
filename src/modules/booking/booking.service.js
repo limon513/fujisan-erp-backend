@@ -323,6 +323,22 @@ const getById = async (access, id) => {
       status: true,
     },
   });
+  const cancellations = await prisma.cancellation.findMany({
+    where: { bookingId: id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      cancellationNo: true,
+      status: true,
+      reason: true,
+      totalPaid: true,
+      chargeAmount: true,
+      refundAmount: true,
+      approvalRequestId: true,
+      refundPaidOn: true,
+      closeReason: true,
+    },
+  });
   const journal = await prisma.journalEntry.findMany({
     where: { sourceType: "Booking", sourceId: id },
     select: { id: true, entryNo: true, kind: true, date: true },
@@ -332,6 +348,7 @@ const getById = async (access, id) => {
     ...rest,
     approval,
     payments,
+    cancellations,
     journal,
     balance: balanceOf(booking.installments, dhakaDate()),
   };
