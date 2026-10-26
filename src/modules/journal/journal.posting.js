@@ -179,8 +179,44 @@ export async function depositAccountFor(tx, method, accountId) {
 }
 
 /**
+ * Interest earned on a booking by now, in paisa: its interest in proportion to how much of the
+ * installments (not the down payment) is paid. Flat interest is spread evenly over the
+ * installments, so the share is exact, and computing the running total (rather than each
+ * payment's slice) keeps rounding from drifting.
+ */
+async function interestEarned(tx, booking) {
+  const interest = toPaisa(booking.interestAmount);
+  if (interest === 0n) return 0n;
+  const installments = await tx.installment.findMany({
+    where: { bookingId: booking.id, number: { gt: 0 } },
+    select: { amount: true },
+  });
+  const total = installments.reduce((sum, i) => sum + toPaisa(i.amount), 0n);
+  const allocations = await tx.paymentAllocation.findMany({
+    where: {
+      payment: { bookingId: booking.id, status: "VERIFIED" },
+      installment: { number: { gt: 0 } },
+    },
+    select: { amount: true, lateFeePart: true },
+  });
+  const paid = allocations.reduce((sum, a) => sum + toPaisa(a.amount) - toPaisa(a.lateFeePart), 0n);
+  if (total === 0n) return 0n;
+  return paid >= total ? interest : (interest * paid) / total;
+}
+
+/** Interest income already posted for a booking (credits − debits), in paisa. */
+async function interestPosted(tx, bookingId, interestAccountId) {
+  const sums = await tx.journalLine.aggregate({
+    where: { bookingId, accountId: interestAccountId },
+    _sum: { debit: true, credit: true },
+  });
+  return toPaisa(sums._sum.credit ?? 0) - toPaisa(sums._sum.debit ?? 0);
+}
+
+/**
  * Payment verified: Dr deposit account; Cr Customer advance (or Customer receivable once the booking
- * is registered) for the installment part, Cr Late fee income for the late-fee part.
+ * is registered) for the principal, Cr Installment interest income for the interest it earns, and
+ * Cr Late fee income for the late-fee part.
  */
 export async function postPaymentVerified(tx, paymentId, actor) {
   const payment = await tx.payment.findUnique({
@@ -188,14 +224,25 @@ export async function postPaymentVerified(tx, paymentId, actor) {
     include: {
       allocations: true,
       booking: {
-        select: { id: true, bookingNo: true, status: true, plot: { select: { code: true } } },
+        select: {
+          id: true,
+          bookingNo: true,
+          status: true,
+          interestAmount: true,
+          plot: { select: { code: true } },
+        },
       },
       customer: { select: { id: true, fullName: true } },
     },
   });
   const deposit = await depositAccountFor(tx, payment.method, payment.depositAccountId);
   const lateFee = payment.allocations.reduce((sum, a) => sum + toPaisa(a.lateFeePart), 0n);
+  const interestAccount = await accountByKey(tx, "INTEREST_INCOME");
+  const earned = await interestEarned(tx, payment.booking);
+  const posted = await interestPosted(tx, payment.bookingId, interestAccount.id);
+  const due = earned - posted;
   const installment = toPaisa(payment.amount) - lateFee;
+  const interest = due <= 0n ? 0n : due > installment ? installment : due;
   const customerSide = await accountByKey(
     tx,
     payment.booking.status === "REGISTERED" ? "CUSTOMER_RECEIVABLE" : "CUSTOMER_ADVANCE",
@@ -210,7 +257,8 @@ export async function postPaymentVerified(tx, paymentId, actor) {
     actor,
     lines: [
       { accountId: deposit.id, debit: payment.amount, ...party },
-      { accountId: customerSide.id, credit: fromPaisa(installment), ...party },
+      { accountId: customerSide.id, credit: fromPaisa(installment - interest), ...party },
+      { accountId: interestAccount.id, credit: fromPaisa(interest), ...party },
       ...(lateFee > 0n
         ? [
             {
@@ -253,23 +301,23 @@ async function advanceHeld(tx, bookingId, advanceAccountId) {
 }
 
 /**
- * Registration (the plot is sold): revenue is recognised. The advance held moves out of
- * liabilities; what is still to be paid becomes a receivable.
- *   Dr Customer advance (held) + Dr Customer receivable (rest) = Cr Plot sales (net price) + Cr Interest
+ * Registration (the plot is sold): the sale is recognised at the net price. The advance held moves
+ * out of liabilities; the rest of the price becomes a receivable. Interest is not part of it: it is
+ * income as each installment is paid.
+ *   Dr Customer advance (held) + Dr Customer receivable (price − held) = Cr Plot sales (net price)
  */
 export async function postRegistration(tx, bookingId, actor) {
   const booking = await tx.booking.findUnique({
     where: { id: bookingId },
     include: { plot: { select: { code: true } }, customer: { select: { fullName: true } } },
   });
-  const [advance, receivable, sales, interest] = await accountsByKey(tx, [
+  const [advance, receivable, sales] = await accountsByKey(tx, [
     "CUSTOMER_ADVANCE",
     "CUSTOMER_RECEIVABLE",
     "SALES_REVENUE",
-    "INTEREST_INCOME",
   ]);
   const held = await advanceHeld(tx, booking.id, advance.id);
-  const total = toPaisa(booking.totalPayable);
+  const total = toPaisa(booking.netPrice);
   const party = { customerId: booking.customerId, bookingId: booking.id };
   return postEntry(tx, {
     date: booking.registeredOn ?? dhakaDate(),
@@ -282,14 +330,15 @@ export async function postRegistration(tx, bookingId, actor) {
       { accountId: advance.id, debit: fromPaisa(held), ...party },
       { accountId: receivable.id, debit: fromPaisa(total - held), ...party },
       { accountId: sales.id, credit: booking.netPrice, ...party },
-      { accountId: interest.id, credit: booking.interestAmount, ...party },
     ],
   });
 }
 
 /**
- * Cancellation approved: the advance held is released.
- *   Dr Customer advance (paid) = Cr Cancellation charge income (charge) + Cr Customer refunds payable (refund)
+ * Cancellation approved: the advance held is released and the interest earned on the booking is
+ * taken back out of income; together they are what was paid, split into charge and refund.
+ *   Dr Customer advance (held) + Dr Installment interest income (earned)
+ *     = Cr Cancellation charge income (charge) + Cr Customer refunds payable (refund)
  */
 export async function postCancellation(tx, cancellationId, actor) {
   const c = await tx.cancellation.findUnique({
@@ -301,11 +350,14 @@ export async function postCancellation(tx, cancellationId, actor) {
     },
   });
   if (toPaisa(c.totalPaid) === 0n) return null;
-  const [advance, income, payable] = await accountsByKey(tx, [
+  const [advance, income, payable, interest] = await accountsByKey(tx, [
     "CUSTOMER_ADVANCE",
     "CANCELLATION_INCOME",
     "REFUND_PAYABLE",
+    "INTEREST_INCOME",
   ]);
+  const earned = await interestPosted(tx, c.bookingId, interest.id);
+  const held = toPaisa(c.totalPaid) - earned;
   const party = { customerId: c.booking.customerId, bookingId: c.bookingId };
   return postEntry(tx, {
     date: dhakaDate(),
@@ -315,7 +367,8 @@ export async function postCancellation(tx, cancellationId, actor) {
     sourceId: c.id,
     actor,
     lines: [
-      { accountId: advance.id, debit: c.totalPaid, ...party },
+      { accountId: advance.id, debit: fromPaisa(held), ...party },
+      { accountId: interest.id, debit: fromPaisa(earned), ...party },
       { accountId: income.id, credit: c.chargeAmount, ...party },
       { accountId: payable.id, credit: c.refundAmount, ...party },
     ],

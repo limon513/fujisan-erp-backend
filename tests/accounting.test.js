@@ -263,6 +263,72 @@ describe("automatic postings", () => {
   });
 });
 
+describe("installment interest", () => {
+  it("earns interest with each installment paid, not at registration", async () => {
+    const withInterest = await prisma.paymentPlan.create({
+      data: {
+        name: "24 months, 10%",
+        downPaymentValue: 20,
+        installmentCount: 24,
+        interestRate: 10,
+      },
+    });
+    const booking = (
+      await api("post", "/bookings", "seller", {
+        customerId: karim.id,
+        plotId: plot.id,
+        paymentPlanId: withInterest.id,
+      })
+    ).body.data;
+    expect(booking).toMatchObject({ interestAmount: "760320", totalPayable: "5512320" });
+    await api("post", `/approvals/${booking.approval.id}/approve`, "manager", {});
+
+    // The down payment carries no interest
+    const down = (await paid(booking, { amount: 950400 })).body.data;
+    expect(sides(await entryFor(down.id))).toEqual([
+      ["CASH", 950400, 0],
+      ["CUSTOMER_ADVANCE", 0, 950400],
+    ]);
+    // Half an installment earns half its interest; the other half comes with the rest of it
+    const half = (await paid(booking, { amount: 95040 })).body.data;
+    expect(sides(await entryFor(half.id))).toEqual([
+      ["CASH", 95040, 0],
+      ["CUSTOMER_ADVANCE", 0, 79200],
+      ["INTEREST_INCOME", 0, 15840],
+    ]);
+    const rest = (await paid(booking, { amount: 95040 })).body.data;
+    expect(sides(await entryFor(rest.id))).toEqual([
+      ["CASH", 95040, 0],
+      ["CUSTOMER_ADVANCE", 0, 79200],
+      ["INTEREST_INCOME", 0, 15840],
+    ]);
+
+    // Registration recognises the net price only
+    await api("post", `/bookings/${booking.id}/register`, "manager", {});
+    expect(sides(await entryFor(booking.id))).toEqual([
+      ["CUSTOMER_ADVANCE", 1108800, 0],
+      ["CUSTOMER_RECEIVABLE", 3643200, 0],
+      ["SALES_REVENUE", 0, 4752000],
+    ]);
+    const after = (await paid(booking, { amount: 190080 })).body.data;
+    expect(sides(await entryFor(after.id))).toEqual([
+      ["CASH", 190080, 0],
+      ["CUSTOMER_RECEIVABLE", 0, 158400],
+      ["INTEREST_INCOME", 0, 31680],
+    ]);
+
+    // A reversed payment takes its interest back, and the next payment earns it again
+    await api("post", `/collections/${after.id}/reverse`, "accounts", { reason: "Cheque bounced" });
+    const again = (await paid(booking, { amount: 190080 })).body.data;
+    expect(sides(await entryFor(again.id))[2]).toEqual(["INTEREST_INCOME", 0, 31680]);
+    const list = (await api("get", "/accounts?balances=true", "accounts")).body.data;
+    const balance = (key) => list.find((a) => a.systemKey === key).balance;
+    expect(balance("INTEREST_INCOME")).toBe("63360.00");
+    expect(balance("CUSTOMER_RECEIVABLE")).toBe("3484800.00");
+    expect((await trialBalance()).balanced).toBe(true);
+  });
+});
+
 describe("manual journals and fiscal years", () => {
   const rent = (extra = {}) => ({
     date: isoDay(0),

@@ -243,6 +243,26 @@ describe("cancellation", () => {
     expect(again.status).toBe(201);
   });
 
+  it("takes the interest earned back out of income on cancellation", async () => {
+    await prisma.paymentPlan.update({ where: { id: plan.id }, data: { interestRate: 10 } });
+    // Down payment ৳9,50,400 + one installment ৳1,90,080 (৳31,680 of it interest)
+    const booking = await paidBooking(1140480);
+    const c = (
+      await api("post", "/cancellations", "manager", { bookingId: booking.id, reason: "Abroad" })
+    ).body.data;
+    expect(c).toMatchObject({ totalPaid: "1140480", chargeAmount: "114048" });
+    await api("post", `/approvals/${c.approvalRequestId}/approve`, "accounts", {});
+    expect(await lines("Cancellation", c.id)).toEqual([
+      ["CUSTOMER_ADVANCE", 1108800, 0],
+      ["INTEREST_INCOME", 31680, 0],
+      ["CANCELLATION_INCOME", 0, 114048],
+      ["REFUND_PAYABLE", 0, 1026432],
+    ]);
+    const accounts = (await api("get", "/accounts?balances=true", "accounts")).body.data;
+    const balance = (key) => accounts.find((a) => a.systemKey === key).balance;
+    expect([balance("CUSTOMER_ADVANCE"), balance("INTEREST_INCOME")]).toEqual(["0.00", "0.00"]);
+  });
+
   it("keeps the booking when the cancellation is rejected or withdrawn", async () => {
     const booking = await paidBooking();
     const c = (

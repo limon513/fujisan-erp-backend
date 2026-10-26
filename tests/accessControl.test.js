@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import prisma from "#core/db/prisma.js";
 import { definePermissions } from "#core/rbac/permissions.js";
 import { buildCatalog, syncAccessControl } from "../prisma/seed/core/accessControl.js";
+import { resetDatabase } from "./helpers/db.js";
 
 const roles = [
   { slug: "boss", name: "Boss", level: 90, template: [["*", "ALL"]] },
@@ -42,10 +43,7 @@ const grantsOf = async (slug) => {
 };
 
 beforeEach(async () => {
-  await prisma.rolePermission.deleteMany();
-  await prisma.permission.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.role.deleteMany();
+  await resetDatabase();
 });
 
 afterAll(async () => {
