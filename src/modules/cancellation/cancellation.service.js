@@ -13,6 +13,7 @@ import {
   postCancellation,
   postRefundPaid,
 } from "#modules/journal/journal.posting.js";
+import { paidOf } from "#modules/booking/booking.ledger.js";
 import { cancellationChargeFor } from "#modules/payment-plan/payment-plan.schedule.js";
 
 const SEQUENCE = { key: "CANCELLATION", prefix: "CN-", padding: 6 };
@@ -50,15 +51,6 @@ const select = {
     },
   },
 };
-
-/** Installment money paid on a booking (verified payments, late-fee parts excluded), in paisa. */
-async function paidOf(tx, bookingId) {
-  const allocations = await tx.paymentAllocation.findMany({
-    where: { payment: { bookingId, status: "VERIFIED" } },
-    select: { amount: true, lateFeePart: true },
-  });
-  return allocations.reduce((sum, a) => sum + toPaisa(a.amount) - toPaisa(a.lateFeePart), 0n);
-}
 
 const policyText = (terms) =>
   Number(terms.cancellationChargeValue) > 0
@@ -121,6 +113,13 @@ const create = async (access, { bookingId, reason }) => {
     where: { bookingId, status: { in: ["PENDING_APPROVAL", "APPROVED"] } },
   });
   if (open) throw AppError.conflict(`This booking already has ${open.cancellationNo}`);
+  const transfer = await prisma.ownershipTransfer.findFirst({
+    where: { bookingId, status: { in: ["PENDING_APPROVAL", "APPROVED"] } },
+  });
+  if (transfer)
+    throw AppError.conflict(
+      `${transfer.transferNo} is open on this booking; finish or withdraw it first`,
+    );
 
   const created = await prisma.$transaction(async (tx) => {
     const c = await tx.cancellation.create({

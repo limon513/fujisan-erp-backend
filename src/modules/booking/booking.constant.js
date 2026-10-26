@@ -20,6 +20,8 @@ export const PLAN_TERMS = [
   "lateFeeValue",
   "cancellationChargeType",
   "cancellationChargeValue",
+  "transferFeeType",
+  "transferFeeValue",
 ];
 
 export const sortableFields = ["createdAt", "bookingDate", "bookingNo", "netPrice"];

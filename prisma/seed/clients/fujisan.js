@@ -43,5 +43,9 @@ export default {
       { name: "Sales Manager", approverType: "ROLE", role: "sales-manager" },
       { name: "Accounts Manager", approverType: "ROLE", role: "accounts-manager" },
     ],
+    OWNERSHIP_TRANSFER: [
+      { name: "Sales Manager", approverType: "ROLE", role: "sales-manager" },
+      { name: "Accounts Manager", approverType: "ROLE", role: "accounts-manager" },
+    ],
   },
 };

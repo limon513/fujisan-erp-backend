@@ -343,3 +343,48 @@ export async function postRefundPaid(tx, cancellationId, actor) {
     ],
   });
 }
+
+/**
+ * Ownership transfer completed: the advance held for the booking moves to the new customer, and
+ * the transfer fee (if any) is received.
+ *   Dr Customer advance (old customer) / Cr Customer advance (new customer)
+ *   Dr cash or bank account (fee) / Cr Ownership transfer fee income
+ */
+export async function postTransfer(tx, transferId, actor) {
+  const t = await tx.ownershipTransfer.findUnique({
+    where: { id: transferId },
+    include: {
+      booking: { select: { bookingNo: true, plot: { select: { code: true } } } },
+      fromCustomer: { select: { fullName: true } },
+      toCustomer: { select: { fullName: true } },
+    },
+  });
+  const [advance, income] = await accountsByKey(tx, ["CUSTOMER_ADVANCE", "TRANSFER_FEE_INCOME"]);
+  const held = await advanceHeld(tx, t.bookingId, advance.id);
+  const fee = toPaisa(t.feeAmount);
+  if (held <= 0n && fee === 0n) return null;
+  const from = { customerId: t.fromCustomerId, bookingId: t.bookingId };
+  const to = { customerId: t.toCustomerId, bookingId: t.bookingId };
+  return postEntry(tx, {
+    date: t.completedOn ?? dhakaDate(),
+    narration: `${t.transferNo}: ${t.booking.bookingNo} (plot ${t.booking.plot.code}) from ${t.fromCustomer.fullName} to ${t.toCustomer.fullName}${t.feeReference ? ` (${t.feeReference})` : ""}`,
+    kind: "AUTO",
+    sourceType: "Transfer",
+    sourceId: t.id,
+    actor,
+    lines: [
+      ...(held > 0n
+        ? [
+            { accountId: advance.id, debit: fromPaisa(held), ...from },
+            { accountId: advance.id, credit: fromPaisa(held), ...to },
+          ]
+        : []),
+      ...(fee > 0n
+        ? [
+            { accountId: t.feeAccountId, debit: t.feeAmount, ...to },
+            { accountId: income.id, credit: t.feeAmount, ...to },
+          ]
+        : []),
+    ],
+  });
+}

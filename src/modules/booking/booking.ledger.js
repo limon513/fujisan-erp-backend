@@ -118,3 +118,12 @@ export function balanceOf(installments, today) {
     lateFees: fromPaisa(lateFees),
   };
 }
+
+/** Installment money paid on a booking (verified payments, late-fee parts excluded), in paisa. */
+export async function paidOf(tx, bookingId) {
+  const allocations = await tx.paymentAllocation.findMany({
+    where: { payment: { bookingId, status: "VERIFIED" } },
+    select: { amount: true, lateFeePart: true },
+  });
+  return allocations.reduce((sum, a) => sum + toPaisa(a.amount) - toPaisa(a.lateFeePart), 0n);
+}

@@ -39,6 +39,9 @@ model PaymentPlan {
   /// deducted on cancellation: FIXED amount, or PERCENT of the amount paid
   cancellationChargeType  ChargeType           @default(PERCENT)
   cancellationChargeValue Decimal              @default(0) @db.Decimal(14, 2)
+  /// charged on an ownership transfer: FIXED amount, or PERCENT of the booking's net price
+  transferFeeType         ChargeType           @default(FIXED)
+  transferFeeValue        Decimal              @default(0) @db.Decimal(14, 2)
   sortOrder               Int                  @default(100)
   createdAt               DateTime             @default(now()) @db.Timestamptz(3)
   updatedAt               DateTime             @updatedAt @db.Timestamptz(3)
@@ -120,15 +123,16 @@ model Booking {
   createdById       String?       @db.Uuid
   updatedById       String?       @db.Uuid
 
-  plot          Plot           @relation(fields: [plotId], references: [id], onDelete: Restrict)
-  project       Project        @relation("ProjectBookings", fields: [projectId], references: [id], onDelete: Restrict)
-  customer      Customer       @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  lead          Lead?          @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  paymentPlan   PaymentPlan?   @relation(fields: [paymentPlanId], references: [id], onDelete: SetNull)
-  owner         Employee?      @relation("BookingOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  plot          Plot                @relation(fields: [plotId], references: [id], onDelete: Restrict)
+  project       Project             @relation("ProjectBookings", fields: [projectId], references: [id], onDelete: Restrict)
+  customer      Customer            @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lead          Lead?               @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  paymentPlan   PaymentPlan?        @relation(fields: [paymentPlanId], references: [id], onDelete: SetNull)
+  owner         Employee?           @relation("BookingOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   installments  Installment[]
   payments      Payment[]
   cancellations Cancellation[]
+  transfers     OwnershipTransfer[]
 
   @@index([plotId, status])
   @@index([customerId])
@@ -303,4 +307,62 @@ model Cancellation {
 
   @@index([bookingId, status])
   @@index([status, createdAt])
+}
+
+enum TransferStatus {
+  /// waiting for the OWNERSHIP_TRANSFER approval; the booking stays with the current customer
+  PENDING_APPROVAL
+  /// approved; the transfer fee is still to be collected
+  APPROVED
+  /// fee collected (or none): the booking belongs to the new customer
+  COMPLETED
+  REJECTED
+  WITHDRAWN
+}
+
+/// Moving a confirmed booking (and the money paid on it) to another customer.
+model OwnershipTransfer {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  /// TR-000001
+  transferNo        String         @unique
+  bookingId         String         @db.Uuid
+  fromCustomerId    String         @db.Uuid
+  toCustomerId      String         @db.Uuid
+  reason            String
+  requestedOn       DateTime       @db.Date
+  /// as calculated by the plan terms / as approved
+  feeAmount         Decimal        @db.Decimal(14, 2)
+  /// the transfer fee terms used (from the booking's plan terms)
+  feePolicy         Json
+  /// installment money paid so far, moved to the new customer at completion
+  amountPaid        Decimal?       @db.Decimal(14, 2)
+  status            TransferStatus @default(PENDING_APPROVAL)
+  approvalRequestId String?        @db.Uuid
+  approvedAt        DateTime?      @db.Timestamptz(3)
+  closeReason       String?
+  // Completion (fee received)
+  completedOn       DateTime?      @db.Date
+  feeMethod         PaymentMethod?
+  feeReference      String?
+  feeAccountId      String?        @db.Uuid
+  completedById     String?        @db.Uuid
+  completedAt       DateTime?      @db.Timestamptz(3)
+  /// data scope: the booking's sales executive (+ org)
+  ownerId           String?        @db.Uuid
+  teamId            String?        @db.Uuid
+  departmentId      String?        @db.Uuid
+  branchId          String?        @db.Uuid
+  createdAt         DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @db.Timestamptz(3)
+  createdById       String?        @db.Uuid
+
+  booking      Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  fromCustomer Customer @relation("TransferFrom", fields: [fromCustomerId], references: [id], onDelete: Restrict)
+  toCustomer   Customer @relation("TransferTo", fields: [toCustomerId], references: [id], onDelete: Restrict)
+  feeAccount   Account? @relation("TransferFeeAccount", fields: [feeAccountId], references: [id], onDelete: Restrict)
+
+  @@index([bookingId, status])
+  @@index([status, createdAt])
+  @@index([fromCustomerId])
+  @@index([toCustomerId])
 }

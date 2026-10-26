@@ -78,3 +78,12 @@ export function cancellationChargeFor(plan, amountPaid) {
   const fee = roundToTaka(charge(plan.cancellationChargeType, plan.cancellationChargeValue, paid));
   return fromPaisa(fee > paid ? paid : fee);
 }
+
+/** Ownership transfer fee on the booking's net price. */
+export function transferFeeFor(plan, netPrice) {
+  return fromPaisa(
+    roundToTaka(
+      charge(plan.transferFeeType ?? "FIXED", plan.transferFeeValue ?? 0, toPaisa(netPrice)),
+    ),
+  );
+}

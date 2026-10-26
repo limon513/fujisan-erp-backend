@@ -339,6 +339,23 @@ const getById = async (access, id) => {
       closeReason: true,
     },
   });
+  const transfers = await prisma.ownershipTransfer.findMany({
+    where: { bookingId: id },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      transferNo: true,
+      status: true,
+      reason: true,
+      feeAmount: true,
+      amountPaid: true,
+      approvalRequestId: true,
+      completedOn: true,
+      closeReason: true,
+      fromCustomer: { select: { id: true, customerCode: true, fullName: true } },
+      toCustomer: { select: { id: true, customerCode: true, fullName: true } },
+    },
+  });
   const journal = await prisma.journalEntry.findMany({
     where: { sourceType: "Booking", sourceId: id },
     select: { id: true, entryNo: true, kind: true, date: true },
@@ -349,6 +366,7 @@ const getById = async (access, id) => {
     approval,
     payments,
     cancellations,
+    transfers,
     journal,
     balance: balanceOf(booking.installments, dhakaDate()),
   };
@@ -507,6 +525,15 @@ const register = async (access, id, { registeredOn, deedNo, note }) => {
   if (booking.status !== "CONFIRMED") {
     throw AppError.conflict("Only a confirmed booking can be registered");
   }
+  const open =
+    (await prisma.ownershipTransfer.findFirst({
+      where: { bookingId: id, status: { in: ["PENDING_APPROVAL", "APPROVED"] } },
+    })) ??
+    (await prisma.cancellation.findFirst({ where: { bookingId: id, status: "PENDING_APPROVAL" } }));
+  if (open)
+    throw AppError.conflict(
+      `${open.transferNo ?? open.cancellationNo} is open on this booking; finish or withdraw it first`,
+    );
   await prisma.$transaction(async (tx) => {
     const { count } = await tx.booking.updateMany({
       where: { id, status: "CONFIRMED" },

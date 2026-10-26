@@ -48,6 +48,12 @@ export const chartOfAccounts = [
   ["4200", "Installment interest income", "INCOME", { parent: "4000", key: "INTEREST_INCOME" }],
   ["4300", "Late fee income", "INCOME", { parent: "4000", key: "LATE_FEE_INCOME" }],
   ["4400", "Cancellation charge income", "INCOME", { parent: "4000", key: "CANCELLATION_INCOME" }],
+  [
+    "4500",
+    "Ownership transfer fee income",
+    "INCOME",
+    { parent: "4000", key: "TRANSFER_FEE_INCOME" },
+  ],
   ["4900", "Other income", "INCOME", { parent: "4000" }],
 
   ["5000", "Expenses", "EXPENSE", { group: true }],

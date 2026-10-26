@@ -20,6 +20,8 @@ const terms = {
   lateFeeValue: percentOrAmount,
   cancellationChargeType: chargeType,
   cancellationChargeValue: percentOrAmount,
+  transferFeeType: chargeType,
+  transferFeeValue: percentOrAmount,
 };
 
 const fields = {
@@ -34,7 +36,7 @@ const fields = {
 /** Rules across fields; `body` has every term (create, or update merged with the stored plan). */
 export function termProblems(body) {
   const problems = [];
-  for (const key of ["downPayment", "lateFee", "cancellationCharge"]) {
+  for (const key of ["downPayment", "lateFee", "cancellationCharge", "transferFee"]) {
     if (body[`${key}Type`] === "PERCENT" && Number(body[`${key}Value`]) > 100) {
       problems.push({ path: `${key}Value`, message: "A percentage can't be over 100" });
     }
@@ -63,6 +65,8 @@ const defaults = {
   lateFeeValue: terms.lateFeeValue.default(0),
   cancellationChargeType: terms.cancellationChargeType.default("PERCENT"),
   cancellationChargeValue: terms.cancellationChargeValue.default(0),
+  transferFeeType: terms.transferFeeType.default("FIXED"),
+  transferFeeValue: terms.transferFeeValue.default(0),
 };
 
 const create = z

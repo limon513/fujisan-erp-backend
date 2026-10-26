@@ -39,11 +39,12 @@ model Account {
   createdById String?     @db.Uuid
   updatedById String?     @db.Uuid
 
-  parent   Account?       @relation("AccountTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children Account[]      @relation("AccountTree")
-  lines    JournalLine[]
-  deposits Payment[]      @relation("PaymentDepositAccount")
-  refunds  Cancellation[] @relation("CancellationRefundAccount")
+  parent       Account?            @relation("AccountTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     Account[]           @relation("AccountTree")
+  lines        JournalLine[]
+  deposits     Payment[]           @relation("PaymentDepositAccount")
+  refunds      Cancellation[]      @relation("CancellationRefundAccount")
+  transferFees OwnershipTransfer[] @relation("TransferFeeAccount")
 
   @@index([parentId])
   @@index([type])

@@ -33,12 +33,14 @@ model Customer {
   updatedById      String?   @db.Uuid
   deletedAt        DateTime? @db.Timestamptz(3)
 
-  owner       Employee?         @relation("CustomerOwner", fields: [ownerId], references: [id], onDelete: SetNull)
-  nominees    CustomerNominee[]
-  plotHolds   PlotHold[]
-  sourceLeads Lead[]            @relation("LeadConversions")
-  bookings    Booking[]
-  payments    Payment[]
+  owner        Employee?           @relation("CustomerOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  nominees     CustomerNominee[]
+  plotHolds    PlotHold[]
+  sourceLeads  Lead[]              @relation("LeadConversions")
+  bookings     Booking[]
+  payments     Payment[]
+  transfersOut OwnershipTransfer[] @relation("TransferFrom")
+  transfersIn  OwnershipTransfer[] @relation("TransferTo")
 
   @@index([mobile])
   @@index([nidNumber])

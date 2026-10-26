@@ -21,6 +21,8 @@ const select = {
   lateFeeValue: true,
   cancellationChargeType: true,
   cancellationChargeValue: true,
+  transferFeeType: true,
+  transferFeeValue: true,
   createdAt: true,
   updatedAt: true,
   project: { select: { id: true, name: true } },
