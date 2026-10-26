@@ -8,6 +8,8 @@ import { nextCode } from "#core/numbering/sequence.js";
 import { buildScopeWhere, isInScope } from "#core/rbac/scope.js";
 import { paginationMeta } from "#core/utils/listQuery.js";
 import { dhakaDate } from "#core/utils/time.js";
+import { toFileDto } from "#modules/file/file.service.js";
+import { fileSelect } from "#modules/file/file.constant.js";
 import { lockBooking, paidOf } from "#modules/booking/booking.ledger.js";
 import { depositAccountFor, postTransfer } from "#modules/journal/journal.posting.js";
 import { transferFeeFor } from "#modules/payment-plan/payment-plan.schedule.js";
@@ -52,6 +54,42 @@ const select = {
     },
   },
 };
+
+const ENTITY = "OwnershipTransfer";
+
+/** An uploaded file not yet attached elsewhere (or already this transfer's). */
+async function agreementFile(db, fileId, transferId) {
+  const file = await db.file.findFirst({ where: { id: fileId, deletedAt: null } });
+  if (!file) throw invalid("agreementFileId", "Upload the transfer agreement");
+  if (file.entityType && !(file.entityType === ENTITY && file.entityId === transferId)) {
+    throw invalid("agreementFileId", "This file belongs to another record");
+  }
+  return file;
+}
+
+const attach = (db, fileId, transferId) =>
+  db.file.update({
+    where: { id: fileId },
+    data: { entityType: ENTITY, entityId: transferId, category: "AGREEMENT" },
+  });
+
+/** The transfers' current agreements by transfer id. */
+export async function agreementsFor(transferIds) {
+  if (!transferIds.length) return new Map();
+  const files = await prisma.file.findMany({
+    where: {
+      entityType: ENTITY,
+      entityId: { in: transferIds },
+      category: "AGREEMENT",
+      deletedAt: null,
+    },
+    orderBy: { createdAt: "desc" },
+    select: fileSelect,
+  });
+  const map = new Map();
+  for (const f of files) if (!map.has(f.entityId)) map.set(f.entityId, toFileDto(f));
+  return map;
+}
 
 const policyText = (terms) =>
   Number(terms.transferFeeValue ?? 0) > 0
@@ -108,7 +146,7 @@ const quote = async (access, { bookingId }) => {
   return { bookingNo: booking.bookingNo, fromCustomer: booking.customer, ...rest };
 };
 
-const create = async (access, { bookingId, toCustomerId, reason }) => {
+const create = async (access, { bookingId, toCustomerId, reason, agreementFileId }) => {
   const { actor } = access;
   const calc = await calculate(access, bookingId);
   const { booking } = calc;
@@ -128,6 +166,7 @@ const create = async (access, { bookingId, toCustomerId, reason }) => {
   });
   if (cancelling)
     throw AppError.conflict(`${cancelling.cancellationNo} is waiting for approval on this booking`);
+  const agreement = await agreementFile(prisma, agreementFileId, null);
 
   const created = await prisma.$transaction(async (tx) => {
     const t = await tx.ownershipTransfer.create({
@@ -164,6 +203,7 @@ const create = async (access, { bookingId, toCustomerId, reason }) => {
         "To customer": `${to.fullName} (${to.customerCode})`,
         "Paid so far": taka(calc.amountPaid),
         "Transfer fee": `${taka(calc.feeAmount)} (${calc.feePolicy.text})`,
+        Agreement: agreement.originalName,
         Reason: reason,
       },
     });
@@ -171,6 +211,7 @@ const create = async (access, { bookingId, toCustomerId, reason }) => {
       where: { id: t.id },
       data: { approvalRequestId: request.id },
     });
+    await attach(tx, agreement.id, t.id);
     await recordAudit(
       {
         action: "TRANSFER_REQUESTED",
@@ -319,7 +360,33 @@ const getById = async (access, id) => {
     where: { sourceId: id, sourceType: "Transfer" },
     select: { id: true, entryNo: true, sourceType: true },
   });
-  return { ...t, journal };
+  const agreement = (await agreementsFor([id])).get(id) ?? null;
+  return { ...t, agreement, journal };
+};
+
+/** A better copy of the agreement, while the transfer still waits for approval. */
+const replaceAgreement = async (access, id, { fileId }) => {
+  const t = await getById(access, id);
+  if (t.status !== "PENDING_APPROVAL")
+    throw AppError.conflict(
+      "The agreement can be replaced only while the transfer waits for approval",
+    );
+  const file = await agreementFile(prisma, fileId, id);
+  await prisma.$transaction(async (tx) => {
+    if (t.agreement && t.agreement.id !== file.id)
+      await tx.file.update({ where: { id: t.agreement.id }, data: { deletedAt: new Date() } });
+    await attach(tx, file.id, id);
+    await recordAudit(
+      {
+        action: "TRANSFER_AGREEMENT_REPLACED",
+        entityType: "Booking",
+        entityId: t.booking.id,
+        description: `${t.transferNo}: agreement replaced with ${file.originalName}`,
+      },
+      tx,
+    );
+  });
+  return getById(access, id);
 };
 
 /** Accounts record the fee received; the booking then belongs to the new customer. */
@@ -351,4 +418,12 @@ const withdraw = async (access, id, { reason }) => {
   return getById(access, id);
 };
 
-export const TransferService = { quote, create, list, getById, complete, withdraw };
+export const TransferService = {
+  quote,
+  create,
+  list,
+  getById,
+  replaceAgreement,
+  complete,
+  withdraw,
+};

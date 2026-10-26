@@ -18,6 +18,7 @@ const Transfer = z
       .nullable()
       .meta({ description: "Installment money that moves to the new customer" }),
     status: Status,
+    agreement: z.record(z.string(), z.unknown()).nullable().optional(),
     fromCustomer: z.record(z.string(), z.unknown()),
     toCustomer: z.record(z.string(), z.unknown()),
     booking: z.record(z.string(), z.unknown()),
@@ -70,11 +71,20 @@ defineRoute({
   tags,
   summary: "Ask to transfer a booking to another customer",
   description:
-    "Requires `transfer.create`. Sends an OWNERSHIP_TRANSFER approval (the approver may change the fee). With no fee the booking changes hands on approval; otherwise once accounts record the fee.",
+    "Requires `transfer.create` and the signed transfer agreement (upload it first with `POST /files`, category AGREEMENT). Sends an OWNERSHIP_TRANSFER approval (the approver may change the fee). With no fee the booking changes hands on approval; otherwise once accounts record the fee.",
   request: { body: V.create },
   response: Transfer,
   status: 201,
   errors: [400, 401, 403, 409, 422],
+});
+defineRoute({
+  method: "put",
+  path: "/transfers/:id/agreement",
+  tags,
+  summary: "Replace the transfer agreement while waiting for approval",
+  request: { params: V.idParams, body: V.agreement },
+  response: Transfer,
+  errors: [400, 401, 403, 404, 409, 422],
 });
 defineRoute({
   method: "post",

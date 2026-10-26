@@ -26,6 +26,11 @@ export const TransferController = {
       message: "Transfer sent for approval",
       data: await S.create(access(req), req.body),
     }),
+  replaceAgreement: async (req, res) =>
+    sendResponse(res, {
+      message: "Agreement replaced",
+      data: await S.replaceAgreement(access(req), id(req), req.body),
+    }),
   complete: async (req, res) =>
     sendResponse(res, {
       message: "Transfer completed",

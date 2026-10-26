@@ -133,6 +133,20 @@ async function paidBooking(amount = 1000000, extra = {}) {
   return booking;
 }
 
+/** An uploaded transfer agreement (stored file not needed for these tests). */
+const agreement = async (name = "transfer-agreement.pdf") =>
+  (
+    await prisma.file.create({
+      data: {
+        storageKey: `test/${Math.random()}`,
+        originalName: name,
+        mimeType: "application/pdf",
+        size: 1024,
+        category: "DOCUMENT",
+      },
+    })
+  ).id;
+
 const lines = async (sourceType, sourceId) => {
   const entry = await prisma.journalEntry.findFirst({
     where: { sourceType, sourceId },
@@ -160,6 +174,7 @@ describe("ownership transfer", () => {
           bookingId: booking.id,
           toCustomerId: rokeya.id,
           reason: "Selling to sister",
+          agreementFileId: await agreement(),
         })
       ).status,
     ).toBe(403);
@@ -169,17 +184,36 @@ describe("ownership transfer", () => {
           bookingId: booking.id,
           toCustomerId: karim.id,
           reason: "Same person",
+          agreementFileId: await agreement(),
         })
       ).status,
     ).toBe(422);
 
-    const res = await api("post", "/transfers", "manager", {
+    // The signed agreement comes with the request
+    const without = await api("post", "/transfers", "manager", {
       bookingId: booking.id,
       toCustomerId: rokeya.id,
       reason: "Selling to sister",
     });
+    expect(without.status).toBe(400);
+    const res = await api("post", "/transfers", "manager", {
+      bookingId: booking.id,
+      toCustomerId: rokeya.id,
+      reason: "Selling to sister",
+      agreementFileId: await agreement(),
+    });
     expect(res.status).toBe(201);
     const t = res.body.data;
+    expect(t.agreement).toMatchObject({
+      originalName: "transfer-agreement.pdf",
+      category: "AGREEMENT",
+    });
+    expect(t.agreement.url).toMatch(/^\/api\/v1\/files\//);
+    const scan = await agreement("agreement-clear-scan.pdf");
+    const replaced = await api("put", `/transfers/${t.id}/agreement`, "manager", { fileId: scan });
+    expect(replaced.body.data.agreement.originalName).toBe("agreement-clear-scan.pdf");
+    const onBooking = (await api("get", `/bookings/${booking.id}`, "manager")).body.data;
+    expect(onBooking.transfers[0].agreement.id).toBe(scan);
     expect(t).toMatchObject({ transferNo: "TR-000001", status: "PENDING_APPROVAL" });
     // Cancelling and registering wait while it is open
     expect(
@@ -248,6 +282,7 @@ describe("ownership transfer", () => {
         bookingId: booking.id,
         toCustomerId: rokeya.id,
         reason: "Gift",
+        agreementFileId: await agreement(),
       })
     ).body.data;
     expect(first.feeAmount).toBe("0");
@@ -265,6 +300,7 @@ describe("ownership transfer", () => {
         bookingId: booking.id,
         toCustomerId: rokeya.id,
         reason: "Gift, papers ready",
+        agreementFileId: await agreement(),
       })
     ).body.data;
     await api("post", `/approvals/${second.approvalRequestId}/approve`, "accounts", {});

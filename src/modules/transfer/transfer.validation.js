@@ -10,6 +10,13 @@ const create = z.object({
   bookingId: z.uuid(),
   toCustomerId: z.uuid().meta({ description: "The new owner (an existing customer)" }),
   reason: z.string().trim().min(3, "Say why the booking is transferred").max(500),
+  agreementFileId: z
+    .uuid({ error: "Upload the transfer agreement" })
+    .meta({ description: "The signed transfer agreement, uploaded first via POST /files" }),
+});
+
+const agreement = z.object({
+  fileId: z.uuid().meta({ description: "A new upload replacing the agreement" }),
 });
 
 const complete = z
@@ -36,4 +43,12 @@ const list = z.object({
   search: z.string().trim().min(1).optional(),
 });
 
-export const TransferValidation = { idParams, quote, create, complete, withdraw, list };
+export const TransferValidation = {
+  idParams,
+  quote,
+  create,
+  agreement,
+  complete,
+  withdraw,
+  list,
+};

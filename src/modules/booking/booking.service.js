@@ -11,6 +11,7 @@ import { dhakaDate, dhakaDay } from "#core/utils/time.js";
 import { advanceStatus, logActivity } from "#modules/lead/lead.workflow.js";
 import { buildSchedule } from "#modules/payment-plan/payment-plan.schedule.js";
 import { postRegistration } from "#modules/journal/journal.posting.js";
+import { agreementsFor } from "#modules/transfer/transfer.service.js";
 import {
   BOOKING_SEQUENCE,
   bookingDetailSelect,
@@ -298,6 +299,11 @@ const list = async (access, query) => {
   return { data, meta: paginationMeta(query, total) };
 };
 
+const withAgreements = async (transfers) => {
+  const agreements = await agreementsFor(transfers.map((t) => t.id));
+  return transfers.map((t) => ({ ...t, agreement: agreements.get(t.id) ?? null }));
+};
+
 const getById = async (access, id) => {
   const booking = await prisma.booking.findFirst({
     where: { id, AND: [scopeWhere(access)] },
@@ -366,7 +372,7 @@ const getById = async (access, id) => {
     approval,
     payments,
     cancellations,
-    transfers,
+    transfers: await withAgreements(transfers),
     journal,
     balance: balanceOf(booking.installments, dhakaDate()),
   };

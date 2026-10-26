@@ -13,6 +13,12 @@ router.get("/", authorize("transfer.view"), validate({ query: V.list }), C.list)
 router.get("/quote", authorize("transfer.create"), validate({ query: V.quote }), C.quote);
 router.get("/:id", authorize("transfer.view"), validate({ params: V.idParams }), C.getById);
 router.post("/", authorize("transfer.create"), validate({ body: V.create }), C.create);
+router.put(
+  "/:id/agreement",
+  authorize("transfer.create"),
+  validate({ params: V.idParams, body: V.agreement }),
+  C.replaceAgreement,
+);
 router.post(
   "/:id/complete",
   authorize("transfer.complete"),
