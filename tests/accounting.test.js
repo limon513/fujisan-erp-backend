@@ -199,8 +199,38 @@ describe("automatic postings", () => {
       code: "1122",
       name: "Dutch-Bangla Bank",
       parentId: acc.BANK.parentId,
+      bankName: "Dutch-Bangla Bank PLC",
+      bankBranch: "Gulshan",
+      accountTitle: "Fujisan Properties Ltd.",
+      accountNumber: "1031100045678",
+      routingNumber: "090261725",
+      swiftCode: "dbblbddh",
     });
-    expect(bank.body.data.type).toBe("ASSET");
+    // Under the bank group it is a bank account, with its details
+    expect(bank.body.data).toMatchObject({
+      type: "ASSET",
+      isBank: true,
+      accountNumber: "1031100045678",
+      swiftCode: "DBBLBDDH",
+    });
+    expect(
+      (
+        await api("post", "/accounts", "accounts", {
+          code: "1123",
+          name: "X",
+          parentId: acc.BANK.parentId,
+          routingNumber: "12",
+        })
+      ).status,
+    ).toBe(400);
+    // Other accounts keep no bank details
+    const petty = await api("post", "/accounts", "accounts", {
+      code: "1112",
+      name: "Petty cash, site office",
+      parentId: acc.CASH.parentId,
+      accountNumber: "123456789",
+    });
+    expect(petty.body.data).toMatchObject({ isBank: false, accountNumber: null });
     await api("post", `/collections/${pending.id}/verify`, "accounts", {
       depositAccountId: bank.body.data.id,
     });

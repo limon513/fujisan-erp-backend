@@ -19,6 +19,13 @@ const Account = z
       .nullable()
       .meta({ description: "Used by automatic postings (CASH, CUSTOMER_ADVANCE, ...)" }),
     description: z.string().nullable(),
+    isBank: z.boolean().meta({ description: "A bank account: carries bank details" }),
+    bankName: z.string().nullable(),
+    bankBranch: z.string().nullable(),
+    accountTitle: z.string().nullable(),
+    accountNumber: z.string().nullable(),
+    routingNumber: z.string().nullable(),
+    swiftCode: z.string().nullable(),
     balance: z
       .string()
       .optional()
@@ -87,7 +94,8 @@ defineRoute({
   path: "/accounts",
   tags,
   summary: "Add an account",
-  description: "Under a group (type follows it), or top-level with a type.",
+  description:
+    "Under a group (type follows it), or top-level with a type. Under a bank group it is a bank account and keeps the bank details (bank, branch, title, number, routing, SWIFT).",
   request: { body: V.create },
   response: Account,
   status: 201,

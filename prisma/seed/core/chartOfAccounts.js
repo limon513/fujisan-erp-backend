@@ -7,8 +7,8 @@ export const chartOfAccounts = [
   ["1000", "Assets", "ASSET", { group: true }],
   ["1100", "Current assets", "ASSET", { group: true, parent: "1000" }],
   ["1110", "Cash in hand", "ASSET", { parent: "1100", key: "CASH" }],
-  ["1120", "Bank accounts", "ASSET", { group: true, parent: "1100" }],
-  ["1121", "Main bank account", "ASSET", { parent: "1120", key: "BANK" }],
+  ["1120", "Bank accounts", "ASSET", { group: true, parent: "1100", bank: true }],
+  ["1121", "Main bank account", "ASSET", { parent: "1120", key: "BANK", bank: true }],
   ["1130", "Mobile financial services", "ASSET", { group: true, parent: "1100" }],
   ["1131", "bKash merchant account", "ASSET", { parent: "1130", key: "BKASH" }],
   ["1132", "Nagad merchant account", "ASSET", { parent: "1130", key: "NAGAD" }],
@@ -74,7 +74,12 @@ export async function syncChartOfAccounts(tx, accounts = chartOfAccounts) {
   const ids = new Map(
     (await tx.account.findMany({ select: { id: true, code: true } })).map((a) => [a.code, a.id]),
   );
-  for (const [code, name, type, { group = false, key = null, parent = null } = {}] of accounts) {
+  for (const [
+    code,
+    name,
+    type,
+    { group = false, key = null, parent = null, bank = false } = {},
+  ] of accounts) {
     if (ids.has(code)) continue;
     const account = await tx.account.create({
       data: {
@@ -82,6 +87,7 @@ export async function syncChartOfAccounts(tx, accounts = chartOfAccounts) {
         name,
         type,
         isGroup: group,
+        isBank: bank,
         systemKey: key,
         parentId: parent ? ids.get(parent) : null,
       },

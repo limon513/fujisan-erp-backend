@@ -24,20 +24,29 @@ enum JournalKind {
 
 /// Chart of accounts. Group accounts organise the tree; only non-group accounts take postings.
 model Account {
-  id          String      @id @default(uuid(7)) @db.Uuid
-  code        String      @unique
-  name        String
-  type        AccountType
-  parentId    String?     @db.Uuid
-  isGroup     Boolean     @default(false)
-  isActive    Boolean     @default(true)
+  id            String      @id @default(uuid(7)) @db.Uuid
+  code          String      @unique
+  name          String
+  type          AccountType
+  parentId      String?     @db.Uuid
+  isGroup       Boolean     @default(false)
+  isActive      Boolean     @default(true)
   /// stable role of a seeded account used by automatic postings (CASH, CUSTOMER_ADVANCE, ...)
-  systemKey   String?     @unique
-  description String?
-  createdAt   DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime    @updatedAt @db.Timestamptz(3)
-  createdById String?     @db.Uuid
-  updatedById String?     @db.Uuid
+  systemKey     String?     @unique
+  description   String?
+  /// a bank account (or the group of them): carries the bank details below
+  isBank        Boolean     @default(false)
+  bankName      String?
+  bankBranch    String?
+  /// name the account is held in
+  accountTitle  String?
+  accountNumber String?
+  routingNumber String?
+  swiftCode     String?
+  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime    @updatedAt @db.Timestamptz(3)
+  createdById   String?     @db.Uuid
+  updatedById   String?     @db.Uuid
 
   parent       Account?            @relation("AccountTree", fields: [parentId], references: [id], onDelete: Restrict)
   children     Account[]           @relation("AccountTree")

@@ -13,6 +13,36 @@ const code = z
   .regex(/^\d{3,8}$/, "3–8 digits")
   .meta({ example: "1122" });
 
+/** Bank details, kept on bank accounts only. */
+const bank = {
+  isBank: z.boolean().optional().meta({ description: "Default: as its parent group" }),
+  bankName: optionalText(120).meta({ example: "Eastern Bank PLC" }),
+  bankBranch: optionalText(120).meta({ example: "Gulshan" }),
+  accountTitle: optionalText(150).meta({ example: "Fujisan Properties Ltd." }),
+  accountNumber: z
+    .string()
+    .trim()
+    .regex(/^[0-9 -]{6,30}$/, "Digits only (6–30)")
+    .optional()
+    .or(z.literal("").transform(() => undefined))
+    .nullable(),
+  routingNumber: z
+    .string()
+    .trim()
+    .regex(/^\d{9}$/, "A routing number has 9 digits")
+    .optional()
+    .or(z.literal("").transform(() => undefined))
+    .nullable(),
+  swiftCode: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{8}([A-Z0-9]{3})?$/, "8 or 11 letters and digits")
+    .optional()
+    .or(z.literal("").transform(() => undefined))
+    .nullable(),
+};
+
 const create = z.object({
   code,
   name: z.string().trim().min(2).max(120).meta({ example: "Dutch-Bangla Bank, Gulshan" }),
@@ -24,10 +54,17 @@ const create = z.object({
   }),
   isGroup: z.boolean().default(false),
   description: optionalText(300),
+  ...bank,
 });
 
 const update = z
-  .object({ code, name: create.shape.name, description: optionalText(300), isActive: z.boolean() })
+  .object({
+    code,
+    name: create.shape.name,
+    description: optionalText(300),
+    isActive: z.boolean(),
+    ...bank,
+  })
   .partial()
   .refine((body) => Object.keys(body).length > 0, { message: "Nothing to update" });
 

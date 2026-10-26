@@ -20,7 +20,29 @@ const select = {
   isActive: true,
   systemKey: true,
   description: true,
+  isBank: true,
+  bankName: true,
+  bankBranch: true,
+  accountTitle: true,
+  accountNumber: true,
+  routingNumber: true,
+  swiftCode: true,
 };
+
+const BANK_FIELDS = [
+  "bankName",
+  "bankBranch",
+  "accountTitle",
+  "accountNumber",
+  "routingNumber",
+  "swiftCode",
+];
+/** Non-bank accounts keep no bank details. */
+const withoutBankDetails = (data) => ({
+  ...data,
+  isBank: false,
+  ...Object.fromEntries(BANK_FIELDS.map((k) => [k, null])),
+});
 
 /** Debit/credit totals per account up to a date (inclusive). */
 async function totalsByAccount(where) {
@@ -82,18 +104,22 @@ const assertCodeFree = async (code, exceptId) => {
     ]);
 };
 
-const create = async (actor, { parentId, type, ...data }) => {
+const create = async (actor, { parentId, type, isBank, ...data }) => {
   await assertCodeFree(data.code);
   let accountType = type;
+  let parent = null;
   if (parentId) {
-    const parent = await findAccount(parentId);
+    parent = await findAccount(parentId);
     if (!parent.isGroup) throw invalid("parentId", `${parent.code} ${parent.name} isn't a group`);
     accountType = parent.type;
   } else if (!type) {
     throw invalid("type", "Choose the type of a top-level account");
   }
+  // Accounts under a bank group are bank accounts unless said otherwise
+  const bank = (isBank ?? parent?.isBank ?? false) && accountType === "ASSET";
+  const fields = bank ? { ...data, isBank: true } : withoutBankDetails(data);
   const account = await prisma.account.create({
-    data: { ...data, type: accountType, parentId: parentId ?? null, createdById: actor.userId },
+    data: { ...fields, type: accountType, parentId: parentId ?? null, createdById: actor.userId },
   });
   return findAccount(account.id);
 };
@@ -104,7 +130,9 @@ const update = async (actor, id, data) => {
   if (data.isActive === false && account.systemKey) {
     throw invalid("isActive", "Automatic postings use this account; it can't be switched off");
   }
-  await prisma.account.update({ where: { id }, data: { ...data, updatedById: actor.userId } });
+  const bank = (data.isBank ?? account.isBank) && account.type === "ASSET";
+  const fields = bank ? data : withoutBankDetails(data);
+  await prisma.account.update({ where: { id }, data: { ...fields, updatedById: actor.userId } });
   return findAccount(id);
 };
 
