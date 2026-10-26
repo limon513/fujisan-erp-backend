@@ -16,6 +16,10 @@ const Cancellation = z
     refundAmount: z.string(),
     policy: z.record(z.string(), z.unknown()),
     status: Status,
+    refundParts: z.array(z.record(z.string(), z.unknown())),
+    refundPaid: z.string(),
+    refundDue: z.string(),
+    nextRefund: z.record(z.string(), z.unknown()).nullable(),
     booking: z.record(z.string(), z.unknown()),
     journal: z
       .array(z.object({ id: z.uuid(), entryNo: z.string(), sourceType: z.string() }))
@@ -74,12 +78,23 @@ defineRoute({
   errors: [400, 401, 403, 409, 422],
 });
 defineRoute({
+  method: "put",
+  path: "/cancellations/:id/refund-schedule",
+  tags,
+  summary: "Plan the refund in parts",
+  description:
+    "Requires `cancellation.refund`. Replaces the unpaid parts; they must add up to the refund still to pay. Paid parts stay.",
+  request: { params: V.idParams, body: V.schedule },
+  response: Cancellation,
+  errors: [400, 401, 403, 404, 409, 422],
+});
+defineRoute({
   method: "post",
   path: "/cancellations/:id/refund",
   tags,
-  summary: "Record the refund payout",
+  summary: "Pay out the next refund part",
   description:
-    "Requires `cancellation.refund`. Posts Dr Customer refunds payable / Cr the cash or bank account.",
+    "Requires `cancellation.refund`. Pays the next due part (the whole refund when no schedule was set) and posts Dr Customer refunds payable / Cr the cash or bank account. The last part marks the cancellation REFUNDED.",
   request: { params: V.idParams, body: V.refund },
   response: Cancellation,
   errors: [400, 401, 403, 404, 409, 422],

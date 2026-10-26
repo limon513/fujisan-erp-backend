@@ -341,8 +341,11 @@ const getById = async (access, id) => {
       chargeAmount: true,
       refundAmount: true,
       approvalRequestId: true,
-      refundPaidOn: true,
       closeReason: true,
+      refundParts: {
+        orderBy: { number: "asc" },
+        select: { id: true, number: true, dueDate: true, amount: true, status: true, paidOn: true },
+      },
     },
   });
   const transfers = await prisma.ownershipTransfer.findMany({

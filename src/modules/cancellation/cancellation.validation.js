@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MAX_PAGE_SIZE } from "#core/utils/listQuery.js";
-import { optionalDateOnly, optionalText } from "#core/utils/validators.js";
+import { dateOnly, money, optionalDateOnly, optionalText } from "#core/utils/validators.js";
 
 const idParams = z.object({ id: z.uuid() });
 
@@ -26,6 +26,19 @@ const refund = z
     path: ["reference"],
   });
 
+const schedule = z.object({
+  parts: z
+    .array(
+      z.object({
+        dueDate: dateOnly(),
+        amount: money.refine((v) => v > 0, { message: "Enter an amount" }),
+      }),
+    )
+    .min(1, "Add at least one part")
+    .max(60)
+    .meta({ description: "Unpaid parts; they must add up to the refund still to pay" }),
+});
+
 const withdraw = z.object({ reason: optionalText(300) });
 
 const list = z.object({
@@ -35,4 +48,12 @@ const list = z.object({
   search: z.string().trim().min(1).optional(),
 });
 
-export const CancellationValidation = { idParams, quote, create, refund, withdraw, list };
+export const CancellationValidation = {
+  idParams,
+  quote,
+  create,
+  schedule,
+  refund,
+  withdraw,
+  list,
+};

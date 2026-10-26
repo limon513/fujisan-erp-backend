@@ -286,7 +286,7 @@ model Cancellation {
   approvalRequestId String?            @db.Uuid
   approvedAt        DateTime?          @db.Timestamptz(3)
   closeReason       String?
-  // Refund payout
+  /// Deprecated: single payout, before refunds could be paid in parts (see RefundInstallment)
   refundPaidOn      DateTime?          @db.Date
   refundMethod      PaymentMethod?
   refundReference   String?
@@ -302,8 +302,9 @@ model Cancellation {
   updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
   createdById       String?            @db.Uuid
 
-  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
-  refundAccount Account? @relation("CancellationRefundAccount", fields: [refundAccountId], references: [id], onDelete: Restrict)
+  booking       Booking             @relation(fields: [bookingId], references: [id], onDelete: Restrict)
+  refundAccount Account?            @relation("CancellationRefundAccount", fields: [refundAccountId], references: [id], onDelete: Restrict)
+  refundParts   RefundInstallment[]
 
   @@index([bookingId, status])
   @@index([status, createdAt])
@@ -365,4 +366,34 @@ model OwnershipTransfer {
   @@index([status, createdAt])
   @@index([fromCustomerId])
   @@index([toCustomerId])
+}
+
+enum RefundInstallmentStatus {
+  DUE
+  PAID
+}
+
+/// A part of a cancellation's refund: planned (due date, amount), then paid out by accounts.
+model RefundInstallment {
+  id             String                  @id @default(uuid(7)) @db.Uuid
+  cancellationId String                  @db.Uuid
+  number         Int
+  dueDate        DateTime                @db.Date
+  amount         Decimal                 @db.Decimal(14, 2)
+  status         RefundInstallmentStatus @default(DUE)
+  paidOn         DateTime?               @db.Date
+  method         PaymentMethod?
+  reference      String?
+  /// cash / bank / mobile account paid from
+  accountId      String?                 @db.Uuid
+  paidById       String?                 @db.Uuid
+  paidAt         DateTime?               @db.Timestamptz(3)
+  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                @updatedAt @db.Timestamptz(3)
+
+  cancellation Cancellation @relation(fields: [cancellationId], references: [id], onDelete: Cascade)
+  account      Account?     @relation("RefundInstallmentAccount", fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@unique([cancellationId, number])
+  @@index([status, dueDate])
 }

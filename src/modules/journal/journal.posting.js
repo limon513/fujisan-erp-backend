@@ -375,24 +375,29 @@ export async function postCancellation(tx, cancellationId, actor) {
   });
 }
 
-/** Refund paid out: Dr Customer refunds payable / Cr the cash or bank account it was paid from. */
-export async function postRefundPaid(tx, cancellationId, actor) {
-  const c = await tx.cancellation.findUnique({
-    where: { id: cancellationId },
-    include: { booking: { include: { customer: { select: { fullName: true } } } } },
+/** A refund part paid out: Dr Customer refunds payable / Cr the cash or bank account paid from. */
+export async function postRefundPaid(tx, partId, actor) {
+  const part = await tx.refundInstallment.findUnique({
+    where: { id: partId },
+    include: {
+      cancellation: {
+        include: { booking: { include: { customer: { select: { fullName: true } } } } },
+      },
+    },
   });
+  const c = part.cancellation;
   const payable = await accountByKey(tx, "REFUND_PAYABLE");
   const party = { customerId: c.booking.customerId, bookingId: c.bookingId };
   return postEntry(tx, {
-    date: c.refundPaidOn,
-    narration: `Refund for ${c.cancellationNo} to ${c.booking.customer.fullName}${c.refundReference ? ` (${c.refundReference})` : ""}`,
+    date: part.paidOn,
+    narration: `Refund for ${c.cancellationNo} (part ${part.number}) to ${c.booking.customer.fullName}${part.reference ? ` (${part.reference})` : ""}`,
     kind: "AUTO",
-    sourceType: "Refund",
-    sourceId: c.id,
+    sourceType: "RefundPayment",
+    sourceId: part.id,
     actor,
     lines: [
-      { accountId: payable.id, debit: c.refundAmount, ...party },
-      { accountId: c.refundAccountId, credit: c.refundAmount, ...party },
+      { accountId: payable.id, debit: part.amount, ...party },
+      { accountId: part.accountId, credit: part.amount, ...party },
     ],
   });
 }

@@ -33,12 +33,21 @@ const select = {
   approvalRequestId: true,
   approvedAt: true,
   closeReason: true,
-  refundPaidOn: true,
-  refundMethod: true,
-  refundReference: true,
-  refundedAt: true,
   createdAt: true,
-  refundAccount: { select: { id: true, code: true, name: true } },
+  refundParts: {
+    orderBy: { number: "asc" },
+    select: {
+      id: true,
+      number: true,
+      dueDate: true,
+      amount: true,
+      status: true,
+      paidOn: true,
+      method: true,
+      reference: true,
+      account: { select: { id: true, code: true, name: true } },
+    },
+  },
   booking: {
     select: {
       id: true,
@@ -293,7 +302,7 @@ const list = async (access, query) => {
     }),
     prisma.cancellation.count({ where }),
   ]);
-  return { data, meta: paginationMeta(query, total) };
+  return { data: data.map(withRefundTotals), meta: paginationMeta(query, total) };
 };
 
 const getById = async (access, id) => {
@@ -303,45 +312,139 @@ const getById = async (access, id) => {
   });
   if (!c) throw AppError.notFound("Cancellation not found");
   const journal = await prisma.journalEntry.findMany({
-    where: { sourceId: id, sourceType: { in: ["Cancellation", "Refund"] } },
+    where: {
+      OR: [
+        { sourceId: id, sourceType: { in: ["Cancellation", "Refund"] } },
+        { sourceType: "RefundPayment", sourceId: { in: c.refundParts.map((p) => p.id) } },
+      ],
+    },
     orderBy: { createdAt: "asc" },
     select: { id: true, entryNo: true, sourceType: true },
   });
-  return { ...c, journal };
+  return { ...withRefundTotals(c), journal };
 };
 
-/** Accounts pay the refund out; posts Dr Refunds payable / Cr the account paid from. */
-const payRefund = async (access, id, { paidOn, method, reference, accountId }) => {
+/** Paid so far, still to pay, and the next part due. */
+function withRefundTotals(c) {
+  const paid = sum(c.refundParts.filter((p) => p.status === "PAID"));
+  const next = c.refundParts.find((p) => p.status === "DUE") ?? null;
+  return {
+    ...c,
+    refundPaid: fromPaisa(paid),
+    refundDue: fromPaisa(c.status === "APPROVED" ? toPaisa(c.refundAmount) - paid : 0n),
+    nextRefund: next && { number: next.number, dueDate: next.dueDate, amount: next.amount },
+  };
+}
+const sum = (parts) => parts.reduce((total, p) => total + toPaisa(p.amount), 0n);
+
+/**
+ * Accounts plan how the refund is paid: parts with due dates adding up to what is still to pay.
+ * Replaces the unpaid parts; paid ones stay.
+ */
+const setRefundSchedule = async (access, id, { parts }) => {
   const c = await getById(access, id);
   if (c.status !== "APPROVED")
-    throw AppError.conflict("Only an approved cancellation has a refund to pay");
+    throw AppError.conflict("Only an approved cancellation has a refund to schedule");
+  const due = toPaisa(c.refundDue);
+  const planned = parts.reduce((total, p) => total + toPaisa(p.amount), 0n);
+  if (planned !== due) {
+    throw invalid(
+      "parts",
+      `The parts add up to ${taka(fromPaisa(planned))}; the refund still to pay is ${taka(c.refundDue)}`,
+    );
+  }
+  const paidParts = c.refundParts.filter((p) => p.status === "PAID");
+  const first = paidParts.reduce((max, p) => Math.max(max, p.number), 0) + 1;
+  const sorted = [...parts].sort((a, b) => a.dueDate - b.dueDate);
   await prisma.$transaction(async (tx) => {
-    const account = await depositAccountFor(tx, method, accountId);
-    const { count } = await tx.cancellation.updateMany({
-      where: { id, status: "APPROVED" },
-      data: {
-        status: "REFUNDED",
-        refundPaidOn: paidOn ?? dhakaDate(),
-        refundMethod: method,
-        refundReference: reference ?? null,
-        refundAccountId: account.id,
-        refundedById: access.actor.userId,
-        refundedAt: new Date(),
-      },
+    await tx.refundInstallment.deleteMany({ where: { cancellationId: id, status: "DUE" } });
+    await tx.refundInstallment.createMany({
+      data: sorted.map((p, i) => ({
+        cancellationId: id,
+        number: first + i,
+        dueDate: p.dueDate,
+        amount: p.amount,
+      })),
     });
-    if (!count) throw AppError.conflict("Someone else just paid this refund");
-    await postRefundPaid(tx, id, access.actor);
     await recordAudit(
       {
-        action: "REFUND_PAID",
+        action: "REFUND_SCHEDULED",
         entityType: "Booking",
         entityId: c.booking.id,
-        description: `Paid the ${taka(c.refundAmount)} refund of ${c.cancellationNo} from ${account.code} ${account.name}`,
+        description: `${c.cancellationNo}: refund of ${taka(c.refundDue)} to be paid in ${parts.length} part${parts.length === 1 ? "" : "s"}`,
       },
       tx,
     );
   });
   return getById(access, id);
+};
+
+/**
+ * Accounts pay out the next refund part (or the whole refund when no schedule was set); posts
+ * Dr Refunds payable / Cr the account paid from. The last part closes the refund.
+ */
+const payRefund = async (access, id, { paidOn, method, reference, accountId }) => {
+  const c = await getById(access, id);
+  if (c.status !== "APPROVED")
+    throw AppError.conflict("Only an approved cancellation has a refund to pay");
+  let paidPart;
+  await prisma.$transaction(async (tx) => {
+    const account = await depositAccountFor(tx, method, accountId);
+    let part = await tx.refundInstallment.findFirst({
+      where: { cancellationId: id, status: "DUE" },
+      orderBy: { number: "asc" },
+    });
+    if (!part) {
+      const last = await tx.refundInstallment.findFirst({
+        where: { cancellationId: id },
+        orderBy: { number: "desc" },
+      });
+      part = await tx.refundInstallment.create({
+        data: {
+          cancellationId: id,
+          number: (last?.number ?? 0) + 1,
+          dueDate: paidOn ?? dhakaDate(),
+          amount: c.refundDue,
+        },
+      });
+    }
+    const { count } = await tx.refundInstallment.updateMany({
+      where: { id: part.id, status: "DUE" },
+      data: {
+        status: "PAID",
+        paidOn: paidOn ?? dhakaDate(),
+        method,
+        reference: reference ?? null,
+        accountId: account.id,
+        paidById: access.actor.userId,
+        paidAt: new Date(),
+      },
+    });
+    if (!count) throw AppError.conflict("Someone else just paid this refund part");
+    await postRefundPaid(tx, part.id, access.actor);
+    const paid = await tx.refundInstallment.aggregate({
+      where: { cancellationId: id, status: "PAID" },
+      _sum: { amount: true },
+    });
+    if (toPaisa(paid._sum.amount ?? 0) >= toPaisa(c.refundAmount)) {
+      await tx.cancellation.updateMany({
+        where: { id, status: "APPROVED" },
+        data: { status: "REFUNDED" },
+      });
+    }
+    paidPart = part;
+    await recordAudit(
+      {
+        action: "REFUND_PAID",
+        entityType: "Booking",
+        entityId: c.booking.id,
+        description: `Paid ${taka(part.amount)} of the ${c.cancellationNo} refund (part ${part.number}) from ${account.code} ${account.name}`,
+      },
+      tx,
+    );
+  });
+  const result = await getById(access, id);
+  return { ...result, paidPart: result.refundParts.find((p) => p.id === paidPart.id) };
 };
 
 const withdraw = async (access, id, { reason }) => {
@@ -354,4 +457,12 @@ const withdraw = async (access, id, { reason }) => {
   return getById(access, id);
 };
 
-export const CancellationService = { quote, create, list, getById, payRefund, withdraw };
+export const CancellationService = {
+  quote,
+  create,
+  list,
+  getById,
+  setRefundSchedule,
+  payRefund,
+  withdraw,
+};

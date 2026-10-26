@@ -296,9 +296,13 @@ const collections = async (access, query) => {
       },
       select: { amount: true, paidAmount: true, status: true },
     }),
-    prisma.cancellation.findMany({
-      where: { AND: [scope], booking: project.booking ?? {}, refundPaidOn: { gte: from, lte: to } },
-      select: { refundAmount: true },
+    prisma.refundInstallment.findMany({
+      where: {
+        status: "PAID",
+        paidOn: { gte: from, lte: to },
+        cancellation: { AND: [scope], booking: project.booking ?? {} },
+      },
+      select: { amount: true },
     }),
     prisma.payment.aggregate({
       where: { AND: [scope, project], status: "PENDING" },
@@ -367,8 +371,8 @@ const collections = async (access, query) => {
       collected: fromPaisa(total),
       receipts: payments.length,
       lateFees: fromPaisa(lateFees),
-      refundsPaid: fromPaisa(sum(refunds, (c) => c.refundAmount)),
-      net: fromPaisa(total - sum(refunds, (c) => c.refundAmount)),
+      refundsPaid: fromPaisa(sum(refunds, (r) => r.amount)),
+      net: fromPaisa(total - sum(refunds, (r) => r.amount)),
       fellDue: fromPaisa(dueTotal),
       fellDuePaid: fromPaisa(duePaid),
       collectionRate: dueTotal > 0n ? Number((duePaid * 1000n) / dueTotal) / 10 : null,
@@ -531,14 +535,19 @@ const customerStatement = async (access, id) => {
         booking: { select: { bookingNo: true, plot: { select: { code: true } } } },
       },
     }),
-    prisma.cancellation.findMany({
-      where: { booking: { customerId: id }, status: "REFUNDED", refundPaidOn: { not: null } },
+    prisma.refundInstallment.findMany({
+      where: { status: "PAID", cancellation: { booking: { customerId: id } } },
       select: {
-        id: true,
-        cancellationNo: true,
-        refundPaidOn: true,
-        refundAmount: true,
-        booking: { select: { bookingNo: true } },
+        number: true,
+        paidOn: true,
+        amount: true,
+        cancellation: {
+          select: {
+            cancellationNo: true,
+            _count: { select: { refundParts: true } },
+            booking: { select: { bookingNo: true } },
+          },
+        },
       },
     }),
     prisma.ownershipTransfer.findMany({
@@ -579,14 +588,15 @@ const customerStatement = async (access, id) => {
       });
     }
   }
-  for (const c of refunds) {
+  for (const r of refunds) {
+    const c = r.cancellation;
     lines.push({
-      date: c.refundPaidOn,
+      date: r.paidOn,
       ref: c.cancellationNo,
       kind: "REFUND",
-      text: `Refund on cancelling ${c.booking.bookingNo}`,
+      text: `Refund on cancelling ${c.booking.bookingNo}${c._count.refundParts > 1 ? ` (part ${r.number})` : ""}`,
       in: "0",
-      out: c.refundAmount.toString(),
+      out: r.amount.toString(),
     });
   }
   for (const t of transfers) {

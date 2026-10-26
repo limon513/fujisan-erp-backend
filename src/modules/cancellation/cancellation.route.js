@@ -13,6 +13,12 @@ router.get("/", authorize("cancellation.view"), validate({ query: V.list }), C.l
 router.get("/quote", authorize("cancellation.create"), validate({ query: V.quote }), C.quote);
 router.get("/:id", authorize("cancellation.view"), validate({ params: V.idParams }), C.getById);
 router.post("/", authorize("cancellation.create"), validate({ body: V.create }), C.create);
+router.put(
+  "/:id/refund-schedule",
+  authorize("cancellation.refund"),
+  validate({ params: V.idParams, body: V.schedule }),
+  C.setRefundSchedule,
+);
 router.post(
   "/:id/refund",
   authorize("cancellation.refund"),

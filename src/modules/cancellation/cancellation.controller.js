@@ -23,6 +23,11 @@ export const CancellationController = {
       message: "Cancellation sent for approval",
       data: await S.create(access(req), req.body),
     }),
+  setRefundSchedule: async (req, res) =>
+    sendResponse(res, {
+      message: "Refund schedule saved",
+      data: await S.setRefundSchedule(access(req), id(req), req.body),
+    }),
   payRefund: async (req, res) =>
     sendResponse(res, {
       message: "Refund paid",

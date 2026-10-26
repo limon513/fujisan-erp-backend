@@ -217,10 +217,19 @@ describe("cancellation", () => {
     });
     expect(paid.body.data).toMatchObject({
       status: "REFUNDED",
-      refundReference: "TT-778",
-      refundAccount: { code: "1121" },
+      refundPaid: "850000.00",
+      refundDue: "0.00",
+      refundParts: [
+        {
+          number: 1,
+          amount: "850000",
+          status: "PAID",
+          reference: "TT-778",
+          account: { code: "1121" },
+        },
+      ],
     });
-    expect(await lines("Refund", c.id)).toEqual([
+    expect(await lines("RefundPayment", paid.body.data.paidPart.id)).toEqual([
       ["REFUND_PAYABLE", 850000, 0],
       ["BANK", 0, 850000],
     ]);
@@ -241,6 +250,68 @@ describe("cancellation", () => {
       paymentPlanId: plan.id,
     });
     expect(again.status).toBe(201);
+  });
+
+  it("pays a refund in parts on a schedule", async () => {
+    const booking = await paidBooking();
+    const c = (
+      await api("post", "/cancellations", "manager", { bookingId: booking.id, reason: "Abroad" })
+    ).body.data;
+    await api("post", `/approvals/${c.approvalRequestId}/approve`, "accounts", {});
+    const schedule = (parts) =>
+      api("put", `/cancellations/${c.id}/refund-schedule`, "accounts", { parts });
+    expect(
+      (
+        await schedule([
+          { dueDate: "2026-11-30", amount: 500000 },
+          { dueDate: "2026-12-31", amount: 300000 },
+        ])
+      ).status,
+    ).toBe(422); // ৳8,00,000 of ৳9,00,000
+    let res = await schedule([
+      { dueDate: "2026-12-31", amount: 400000 },
+      { dueDate: "2026-11-30", amount: 500000 },
+    ]);
+    expect(res.body.data).toMatchObject({
+      refundDue: "900000.00",
+      nextRefund: { number: 1, amount: "500000" },
+    });
+
+    res = await api("post", `/cancellations/${c.id}/refund`, "accounts", { method: "CASH" });
+    expect(res.body.data).toMatchObject({
+      status: "APPROVED",
+      refundPaid: "500000.00",
+      refundDue: "400000.00",
+      nextRefund: { number: 2 },
+    });
+    // The rest can be re-planned; the paid part stays
+    res = await schedule([
+      { dueDate: "2027-01-15", amount: 200000 },
+      { dueDate: "2027-02-15", amount: 200000 },
+    ]);
+    expect(res.body.data.refundParts.map((p) => [p.number, p.amount, p.status])).toEqual([
+      [1, "500000", "PAID"],
+      [2, "200000", "DUE"],
+      [3, "200000", "DUE"],
+    ]);
+    await api("post", `/cancellations/${c.id}/refund`, "accounts", { method: "CASH" });
+    res = await api("post", `/cancellations/${c.id}/refund`, "accounts", {
+      method: "BANK_TRANSFER",
+      reference: "TT-1",
+    });
+    expect(res.body.data).toMatchObject({ status: "REFUNDED", refundPaid: "900000.00" });
+    expect(
+      (await api("post", `/cancellations/${c.id}/refund`, "accounts", { method: "CASH" })).status,
+    ).toBe(409);
+    const accounts = (await api("get", "/accounts?balances=true", "accounts")).body.data;
+    expect(accounts.find((a) => a.systemKey === "REFUND_PAYABLE").balance).toBe("0.00");
+    const statement = (await api("get", `/reports/customers/${karim.id}/statement`, "accounts"))
+      .body.data;
+    expect(statement.lines.filter((l) => l.kind === "REFUND").map((l) => l.out)).toEqual([
+      "500000",
+      "200000",
+      "200000",
+    ]);
   });
 
   it("takes the interest earned back out of income on cancellation", async () => {

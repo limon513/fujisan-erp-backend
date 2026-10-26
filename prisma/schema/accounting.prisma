@@ -45,6 +45,7 @@ model Account {
   deposits     Payment[]           @relation("PaymentDepositAccount")
   refunds      Cancellation[]      @relation("CancellationRefundAccount")
   transferFees OwnershipTransfer[] @relation("TransferFeeAccount")
+  refundParts  RefundInstallment[] @relation("RefundInstallmentAccount")
 
   @@index([parentId])
   @@index([type])
