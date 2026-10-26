@@ -48,6 +48,7 @@ model Project {
   assignmentRules LeadAssignmentRule[] @relation("AssignmentRuleProject")
   paymentPlans    PaymentPlan[]        @relation("ProjectPaymentPlans")
   bookings        Booking[]            @relation("ProjectBookings")
+  costs           ProjectCost[]        @relation("ProjectCosts")
 }
 
 model Block {

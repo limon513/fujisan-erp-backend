@@ -48,13 +48,15 @@ model Account {
   createdById   String?     @db.Uuid
   updatedById   String?     @db.Uuid
 
-  parent       Account?            @relation("AccountTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children     Account[]           @relation("AccountTree")
-  lines        JournalLine[]
-  deposits     Payment[]           @relation("PaymentDepositAccount")
-  refunds      Cancellation[]      @relation("CancellationRefundAccount")
-  transferFees OwnershipTransfer[] @relation("TransferFeeAccount")
-  refundParts  RefundInstallment[] @relation("RefundInstallmentAccount")
+  parent          Account?            @relation("AccountTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children        Account[]           @relation("AccountTree")
+  lines           JournalLine[]
+  deposits        Payment[]           @relation("PaymentDepositAccount")
+  refunds         Cancellation[]      @relation("CancellationRefundAccount")
+  transferFees    OwnershipTransfer[] @relation("TransferFeeAccount")
+  refundParts     RefundInstallment[] @relation("RefundInstallmentAccount")
+  projectCostsIn  ProjectCost[]       @relation("ProjectCostInventory")
+  projectCostsOut ProjectCost[]       @relation("ProjectCostPaidFrom")
 
   @@index([parentId])
   @@index([type])
@@ -120,4 +122,46 @@ model JournalLine {
   @@index([accountId])
   @@index([entryId])
   @@index([bookingId])
+}
+
+enum ProjectCostCategory {
+  LAND_PURCHASE
+  /// land registration, mutation, stamp duty: part of the land's cost
+  LAND_REGISTRATION
+  DEVELOPMENT
+  OTHER
+}
+
+enum ProjectCostStatus {
+  POSTED
+  REVERSED
+}
+
+/// A cost of a project's land (purchase, registration, development ...): capitalised into land
+/// inventory and moved to cost of sales plot by plot (by area) as plots are registered.
+model ProjectCost {
+  id                 String              @id @default(uuid(7)) @db.Uuid
+  projectId          String              @db.Uuid
+  date               DateTime            @db.Date
+  category           ProjectCostCategory
+  description        String
+  amount             Decimal             @db.Decimal(14, 2)
+  /// land inventory account debited (land purchase cost / land development cost)
+  inventoryAccountId String              @db.Uuid
+  /// cash / bank account paid from, or a payable
+  paidFromAccountId  String              @db.Uuid
+  reference          String?
+  status             ProjectCostStatus   @default(POSTED)
+  reversedAt         DateTime?           @db.Timestamptz(3)
+  reversedById       String?             @db.Uuid
+  reverseReason      String?
+  createdAt          DateTime            @default(now()) @db.Timestamptz(3)
+  createdById        String?             @db.Uuid
+
+  project          Project @relation("ProjectCosts", fields: [projectId], references: [id], onDelete: Restrict)
+  inventoryAccount Account @relation("ProjectCostInventory", fields: [inventoryAccountId], references: [id], onDelete: Restrict)
+  paidFromAccount  Account @relation("ProjectCostPaidFrom", fields: [paidFromAccountId], references: [id], onDelete: Restrict)
+
+  @@index([projectId, status])
+  @@index([date])
 }

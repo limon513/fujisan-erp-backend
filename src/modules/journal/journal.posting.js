@@ -319,6 +319,7 @@ export async function postRegistration(tx, bookingId, actor) {
   const held = await advanceHeld(tx, booking.id, advance.id);
   const total = toPaisa(booking.netPrice);
   const party = { customerId: booking.customerId, bookingId: booking.id };
+  const cost = await plotCost(tx, booking);
   return postEntry(tx, {
     date: booking.registeredOn ?? dhakaDate(),
     narration: `Registration of ${booking.bookingNo}: plot ${booking.plot.code} sold to ${booking.customer.fullName}`,
@@ -330,7 +331,121 @@ export async function postRegistration(tx, bookingId, actor) {
       { accountId: advance.id, debit: fromPaisa(held), ...party },
       { accountId: receivable.id, debit: fromPaisa(total - held), ...party },
       { accountId: sales.id, credit: booking.netPrice, ...party },
+      ...(cost.total > 0n
+        ? [
+            {
+              accountId: (await accountByKey(tx, "COST_OF_SALES")).id,
+              debit: fromPaisa(cost.total),
+              description: `Land cost of plot ${booking.plot.code} (${cost.areaSqft} of ${cost.unsoldArea} sqft unsold)`,
+              ...party,
+            },
+            ...cost.byAccount.map(([accountId, amount]) => ({
+              accountId,
+              credit: fromPaisa(amount),
+              ...party,
+            })),
+          ]
+        : []),
     ],
+  });
+}
+
+/**
+ * The land cost a plot takes with it when registered: of each inventory account, the project's
+ * cost not yet moved to cost of sales × the plot's share of the area not yet sold. Using what is
+ * left (not the original total) spreads costs added later over the plots still unsold, and
+ * empties the inventory exactly when the last plot is registered.
+ */
+async function plotCost(tx, booking) {
+  const empty = { total: 0n, byAccount: [] };
+  const plot = await tx.plot.findUnique({
+    where: { id: booking.plotId },
+    select: { areaSqft: true },
+  });
+  const area = Number(plot?.areaSqft ?? 0);
+  if (!area) return empty;
+  const costs = await tx.projectCost.groupBy({
+    by: ["inventoryAccountId"],
+    where: { projectId: booking.projectId, status: "POSTED" },
+    _sum: { amount: true },
+  });
+  if (!costs.length) return empty;
+  // Plots already sold: those of the project's other registered bookings
+  const sold = await tx.booking.findMany({
+    where: { projectId: booking.projectId, status: "REGISTERED", id: { not: booking.id } },
+    select: { id: true, plot: { select: { areaSqft: true } } },
+  });
+  const plots = await tx.plot.aggregate({
+    where: { projectId: booking.projectId, deletedAt: null },
+    _sum: { areaSqft: true },
+  });
+  const soldArea = sold.reduce((sum, b) => sum + Number(b.plot.areaSqft ?? 0), 0);
+  const unsoldArea = Number(plots._sum.areaSqft ?? 0) - soldArea;
+  if (unsoldArea <= 0) return empty;
+  const moved = await tx.journalLine.groupBy({
+    by: ["accountId"],
+    where: {
+      accountId: { in: costs.map((c) => c.inventoryAccountId) },
+      bookingId: { in: sold.map((b) => b.id) },
+      entry: { sourceType: "Booking" },
+    },
+    _sum: { credit: true },
+  });
+  // Shares in whole paisa via integer maths on area × 100 (areas may have decimals)
+  const share = BigInt(Math.round(area * 100));
+  const of = BigInt(Math.round(unsoldArea * 100));
+  const byAccount = [];
+  for (const c of costs) {
+    const left =
+      toPaisa(c._sum.amount ?? 0) -
+      toPaisa(moved.find((m) => m.accountId === c.inventoryAccountId)?._sum.credit ?? 0);
+    if (left <= 0n) continue;
+    const amount = share >= of ? left : (left * share) / of;
+    if (amount > 0n) byAccount.push([c.inventoryAccountId, amount]);
+  }
+  return {
+    total: byAccount.reduce((sum, [, amount]) => sum + amount, 0n),
+    byAccount,
+    areaSqft: area,
+    unsoldArea,
+  };
+}
+
+/** A project cost: Dr its land inventory account / Cr the account paid from. */
+export async function postProjectCost(tx, costId, actor) {
+  const cost = await tx.projectCost.findUnique({
+    where: { id: costId },
+    include: { project: { select: { name: true } } },
+  });
+  return postEntry(tx, {
+    date: cost.date,
+    narration: `${cost.project.name}: ${cost.description}${cost.reference ? ` (${cost.reference})` : ""}`,
+    kind: "AUTO",
+    sourceType: "ProjectCost",
+    sourceId: cost.id,
+    actor,
+    lines: [
+      { accountId: cost.inventoryAccountId, debit: cost.amount },
+      { accountId: cost.paidFromAccountId, credit: cost.amount },
+    ],
+  });
+}
+
+/** A project cost reversed: the mirror of its entry. */
+export async function postProjectCostReversed(tx, costId, actor) {
+  const original = await tx.journalEntry.findUnique({
+    where: {
+      sourceType_sourceId_kind: { sourceType: "ProjectCost", sourceId: costId, kind: "AUTO" },
+    },
+    include: { lines: true },
+  });
+  const cost = await tx.projectCost.findUnique({ where: { id: costId } });
+  return reverseEntry(tx, original, {
+    date: dhakaDate(),
+    narration: `Reversal: ${cost.description}${cost.reverseReason ? ` (${cost.reverseReason})` : ""}`,
+    sourceType: "ProjectCost",
+    sourceId: costId,
+    actor,
   });
 }
 
