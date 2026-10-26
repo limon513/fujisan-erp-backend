@@ -67,8 +67,9 @@ layouts, holds with day limit + auto-release, sold on registration, single owner
 - ☑ 3.6 EMI: schedule (with booking), overdue / this month / later list, late fee after grace (once), waive, reminders 7/3/1 days + overdue
 - ☑ 3.7 Collection: entry → verification (money receipt, applied oldest first, posted to the deposit account) → reversal (bounced cheque); printable money receipt; registration (plot SOLD)
 - ☑ 3.8 Cancellation & refund (policy calculation, one approval with adjustable refund, postings, refund payout); ownership transfer (plan fee, approval with adjustable fee, fee receipt, advance moves to the new customer)
-- ☐ 3.9 Commission calculation
-- ☐ 3.10 Sales & management dashboards, customer ledger, collection/outstanding reports
+- ⏸ 3.9 Commission calculation — set aside (2026-10-26): the client has no commission for now; every record already keeps who did what (booking owner, collector, verifier), so it can be added later
+- ☑ 3.10 Sales & management dashboards, customer ledger, collection/outstanding reports: dashboard (this month, 12-month booked vs collected, receivables aging), reports (sales by project / salesperson, collections by method / account / project per day or month with collection rate, outstanding with aging), printable customer statement
+- ☐ 3.11 From client decisions ([05-client-decisions](05-client-decisions.md)): interest recognised per installment paid; transfer agreement upload; refund schedule (pay a refund in parts); bank details on bank accounts; land cost per project → cost of sales at registration
 
 ## Phase 4 — Back office
 
