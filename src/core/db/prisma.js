@@ -3,7 +3,15 @@ import { PrismaClient } from "#generated/prisma/client.ts";
 import config from "#config/index.js";
 import { auditExtension } from "#core/audit/audit.extension.js";
 
-const adapter = new PrismaPg({ connectionString: config.databaseUrl });
+// Hosted Postgres (Neon) closes idle connections on its side; a pooled connection it closed
+// either fails ("Server has closed the connection") or hangs. Drop idle connections before the
+// server does, keep live ones alive, and give up on a connection attempt instead of waiting.
+const adapter = new PrismaPg({
+  connectionString: config.databaseUrl,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 15_000,
+  keepAlive: true,
+});
 
 /** Un-extended client: used by the audit extension itself (and nowhere else). */
 export const basePrisma = new PrismaClient({

@@ -191,6 +191,12 @@ describe("cancellation", () => {
       select: { status: true },
     });
     expect(statuses.slice(0, 2).map((i) => i.status)).toEqual(["PAID", "WAIVED"]);
+    const cancelled = (await api("get", `/bookings/${booking.id}`, "manager")).body.data;
+    expect(cancelled.balance).toMatchObject({
+      paid: "1000000.00",
+      outstanding: "0.00",
+      overdue: "0.00",
+    });
     expect(await lines("Cancellation", c.id)).toEqual([
       ["CUSTOMER_ADVANCE", 1000000, 0],
       ["CANCELLATION_INCOME", 0, 150000],

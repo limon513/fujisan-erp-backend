@@ -66,7 +66,7 @@ layouts, holds with day limit + auto-release, sold on registration, single owner
 - ☑ 3.5 Booking (customer → plot → plan → discount → approval → confirmed with its schedule); registration (SOLD) comes with collections
 - ☑ 3.6 EMI: schedule (with booking), overdue / this month / later list, late fee after grace (once), waive, reminders 7/3/1 days + overdue
 - ☑ 3.7 Collection: entry → verification (money receipt, applied oldest first, posted to the deposit account) → reversal (bounced cheque); printable money receipt; registration (plot SOLD)
-- ◐ 3.8 Cancellation & refund (policy calculation, one approval with adjustable refund, postings, refund payout) — API ☑, screens ☐; ownership transfer ☐
+- ◐ 3.8 Cancellation & refund (policy calculation, one approval with adjustable refund, postings, refund payout) ☑; ownership transfer ☐
 - ☐ 3.9 Commission calculation
 - ☐ 3.10 Sales & management dashboards, customer ledger, collection/outstanding reports
 

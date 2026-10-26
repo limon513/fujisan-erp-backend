@@ -7,7 +7,9 @@ import { fromPaisa, toPaisa } from "#core/money/money.js";
  * All functions that write take a transaction client; amounts are exact (paisa).
  */
 
-const owedOf = (i) => toPaisa(i.amount) + toPaisa(i.lateFee) - toPaisa(i.paidAmount);
+/** What an installment still owes; a waived one (e.g. after cancellation) owes nothing. */
+const owedOf = (i) =>
+  i.status === "WAIVED" ? 0n : toPaisa(i.amount) + toPaisa(i.lateFee) - toPaisa(i.paidAmount);
 
 export const statusFor = (amount, lateFee, paid) =>
   paid <= 0n ? "DUE" : paid >= toPaisa(amount) + toPaisa(lateFee) ? "PAID" : "PARTIAL";
@@ -97,11 +99,12 @@ export function balanceOf(installments, today) {
   let overdueCount = 0;
   let lateFees = 0n;
   for (const i of installments) {
-    due += toPaisa(i.amount) + toPaisa(i.lateFee);
+    // A waived installment is only due as far as it was paid
+    due += i.status === "WAIVED" ? toPaisa(i.paidAmount) : toPaisa(i.amount) + toPaisa(i.lateFee);
     paid += toPaisa(i.paidAmount);
     lateFees += toPaisa(i.lateFee);
     const owed = owedOf(i);
-    if (owed > 0n && i.dueDate < today && i.status !== "WAIVED") {
+    if (owed > 0n && i.dueDate < today) {
       overdue += owed;
       overdueCount += 1;
     }

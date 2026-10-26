@@ -23,6 +23,16 @@ export const DEPOSIT_KEYS = {
   NAGAD: "NAGAD",
 };
 
+/**
+ * Accounts by system role, one after another: inside a transaction every query shares one
+ * connection, so parallel queries would only queue on it (and trip a pg deprecation warning).
+ */
+async function accountsByKey(tx, keys) {
+  const accounts = [];
+  for (const key of keys) accounts.push(await accountByKey(tx, key));
+  return accounts;
+}
+
 /** An account by its system role (seeded). */
 export async function accountByKey(tx, key) {
   const account = await tx.account.findUnique({ where: { systemKey: key } });
@@ -252,11 +262,12 @@ export async function postRegistration(tx, bookingId, actor) {
     where: { id: bookingId },
     include: { plot: { select: { code: true } }, customer: { select: { fullName: true } } },
   });
-  const [advance, receivable, sales, interest] = await Promise.all(
-    ["CUSTOMER_ADVANCE", "CUSTOMER_RECEIVABLE", "SALES_REVENUE", "INTEREST_INCOME"].map((key) =>
-      accountByKey(tx, key),
-    ),
-  );
+  const [advance, receivable, sales, interest] = await accountsByKey(tx, [
+    "CUSTOMER_ADVANCE",
+    "CUSTOMER_RECEIVABLE",
+    "SALES_REVENUE",
+    "INTEREST_INCOME",
+  ]);
   const held = await advanceHeld(tx, booking.id, advance.id);
   const total = toPaisa(booking.totalPayable);
   const party = { customerId: booking.customerId, bookingId: booking.id };
@@ -290,11 +301,11 @@ export async function postCancellation(tx, cancellationId, actor) {
     },
   });
   if (toPaisa(c.totalPaid) === 0n) return null;
-  const [advance, income, payable] = await Promise.all(
-    ["CUSTOMER_ADVANCE", "CANCELLATION_INCOME", "REFUND_PAYABLE"].map((key) =>
-      accountByKey(tx, key),
-    ),
-  );
+  const [advance, income, payable] = await accountsByKey(tx, [
+    "CUSTOMER_ADVANCE",
+    "CANCELLATION_INCOME",
+    "REFUND_PAYABLE",
+  ]);
   const party = { customerId: c.booking.customerId, bookingId: c.bookingId };
   return postEntry(tx, {
     date: dhakaDate(),
