@@ -16,6 +16,20 @@ router.get(
   validate({ query: V.trialBalance }),
   C.trialBalance,
 );
+router.get(
+  "/profit-and-loss",
+  authorize("account.view"),
+  validate({ query: V.period }),
+  C.profitAndLoss,
+);
+router.get(
+  "/balance-sheet",
+  authorize("account.view"),
+  validate({ query: V.trialBalance }),
+  C.balanceSheet,
+);
+router.get("/cash-book", authorize("account.view"), validate({ query: V.cashBook }), C.cashBook);
+router.get("/cash-flow", authorize("account.view"), validate({ query: V.period }), C.cashFlow);
 router.get("/:id", authorize("account.view"), validate({ params: V.idParams }), C.getById);
 router.get(
   "/:id/ledger",

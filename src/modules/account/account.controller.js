@@ -1,6 +1,7 @@
 import { StatusCodes } from "http-status-codes";
 import sendResponse from "#core/utils/sendResponse.js";
 import { AccountService as S } from "./account.service.js";
+import { AccountStatements as F } from "./account.statements.js";
 
 const id = (req) => req.valid.params.id;
 
@@ -31,4 +32,15 @@ export const AccountController = {
     }),
   trialBalance: async (req, res) =>
     sendResponse(res, { message: "Trial balance", data: await S.trialBalance(req.valid.query) }),
+  profitAndLoss: async (req, res) =>
+    sendResponse(res, {
+      message: "Profit and loss",
+      data: await F.profitAndLoss(req.valid.query),
+    }),
+  balanceSheet: async (req, res) =>
+    sendResponse(res, { message: "Balance sheet", data: await F.balanceSheet(req.valid.query) }),
+  cashBook: async (req, res) =>
+    sendResponse(res, { message: "Cash and bank book", data: await F.cashBook(req.valid.query) }),
+  cashFlow: async (req, res) =>
+    sendResponse(res, { message: "Cash flow", data: await F.cashFlow(req.valid.query) }),
 };

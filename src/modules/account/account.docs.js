@@ -121,3 +121,73 @@ defineRoute({
   request: { params: V.idParams },
   errors: [401, 403, 404, 409],
 });
+
+const Rows = z.object({ rows: z.array(z.record(z.string(), z.unknown())), total: z.string() });
+
+defineRoute({
+  method: "get",
+  path: "/accounts/profit-and-loss",
+  tags,
+  summary: "Profit and loss for a period",
+  description:
+    "Income and expense accounts (indented, groups summed) for the period, with gross profit (plot sales − cost of plots sold) and net profit. Default period: the fiscal year to date.",
+  request: { query: V.period },
+  response: z.object({
+    income: Rows,
+    expenses: Rows,
+    grossProfit: z.record(z.string(), z.unknown()),
+    netProfit: z.string(),
+    margin: z.number().nullable(),
+  }),
+  errors: [400, 401, 403, 422],
+});
+defineRoute({
+  method: "get",
+  path: "/accounts/balance-sheet",
+  tags,
+  summary: "Balance sheet as of a date",
+  description:
+    "Assets = liabilities + equity. Fiscal years are locked, not closed into retained earnings, so profit shows in equity as earlier years and this fiscal year.",
+  request: { query: V.trialBalance },
+  response: z.object({
+    assets: Rows,
+    liabilities: Rows,
+    equity: Rows,
+    liabilitiesAndEquity: z.string(),
+    balanced: z.boolean(),
+  }),
+  errors: [400, 401, 403],
+});
+defineRoute({
+  method: "get",
+  path: "/accounts/cash-book",
+  tags,
+  summary: "Cash and bank book",
+  description:
+    "Opening, receipts, payments and closing of every cash, bank and mobile account, and the dated lines of one (or all) with the accounts on the other side and a running balance.",
+  request: { query: V.cashBook },
+  response: z.object({
+    accounts: z.array(z.record(z.string(), z.unknown())),
+    lines: z.array(z.record(z.string(), z.unknown())),
+    opening: z.string(),
+    closing: z.string(),
+  }),
+  errors: [400, 401, 403, 422],
+});
+defineRoute({
+  method: "get",
+  path: "/accounts/cash-flow",
+  tags,
+  summary: "Cash flow statement (direct method)",
+  description:
+    "Money in and out by the account on the other side, in operating, investing and financing activities; moves between money accounts are left out. Opening + net change = closing.",
+  request: { query: V.period },
+  response: z.object({
+    sections: z.array(z.record(z.string(), z.unknown())),
+    netChange: z.string(),
+    opening: z.string(),
+    closing: z.string(),
+    reconciles: z.boolean(),
+  }),
+  errors: [400, 401, 403, 422],
+});

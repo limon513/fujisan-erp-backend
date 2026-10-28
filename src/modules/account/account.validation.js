@@ -81,4 +81,22 @@ const ledger = z.object({ from: optionalDateOnly(), to: optionalDateOnly() });
 
 const trialBalance = z.object({ asOf: optionalDateOnly() });
 
-export const AccountValidation = { idParams, create, update, list, ledger, trialBalance };
+const period = z.object({
+  from: optionalDateOnly().meta({ description: "Default: start of the fiscal year of `to`" }),
+  to: optionalDateOnly().meta({ description: "Default: today" }),
+});
+
+const cashBook = period.extend({
+  accountId: z.uuid().optional().meta({ description: "One money account; default all of them" }),
+});
+
+export const AccountValidation = {
+  idParams,
+  create,
+  update,
+  list,
+  ledger,
+  trialBalance,
+  period,
+  cashBook,
+};
