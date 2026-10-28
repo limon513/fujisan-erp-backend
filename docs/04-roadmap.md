@@ -73,7 +73,7 @@ layouts, holds with day limit + auto-release, sold on registration, single owner
 
 ## Phase 4 — Back office
 
-- ☐ 4.1 Accounts UI: COA, manual journals, cash/bank book, ledgers, bank reconciliation, trial balance, P&L, balance sheet, cash flow
+- ◐ 4.1 Accounts UI: COA ☑, manual journals ☑, ledgers ☑, trial balance ☑, P&L ☑, balance sheet ☑, cash/bank book ☑, cash flow (direct) ☑; bank reconciliation ☐
 - ☐ 4.2 HR: employee lifecycle (transfer, promotion, resignation, exit), documents
 - ☐ 4.3 Attendance + leave (+ device import)
 - ☐ 4.4 Payroll (structure, run, approval, payslip, posting)
