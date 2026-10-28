@@ -57,6 +57,7 @@ model Account {
   refundParts     RefundInstallment[] @relation("RefundInstallmentAccount")
   projectCostsIn  ProjectCost[]       @relation("ProjectCostInventory")
   projectCostsOut ProjectCost[]       @relation("ProjectCostPaidFrom")
+  bankStatements  BankStatement[]     @relation("BankStatements")
 
   @@index([parentId])
   @@index([type])
@@ -116,8 +117,10 @@ model JournalLine {
   bookingId   String? @db.Uuid
   lineNo      Int
 
-  entry   JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  account Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  entry     JournalEntry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account   Account            @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  /// the bank statement line it was reconciled with
+  statement BankStatementLine?
 
   @@index([accountId])
   @@index([entryId])
@@ -164,4 +167,53 @@ model ProjectCost {
 
   @@index([projectId, status])
   @@index([date])
+}
+
+/// A bank statement imported for reconciliation (one bank account, one period).
+model BankStatement {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  accountId      String   @db.Uuid
+  fileName       String?
+  fromDate       DateTime @db.Date
+  toDate         DateTime @db.Date
+  /// the balance the bank shows at the end of the statement
+  closingBalance Decimal  @db.Decimal(14, 2)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  createdById    String?  @db.Uuid
+
+  account Account             @relation("BankStatements", fields: [accountId], references: [id], onDelete: Restrict)
+  lines   BankStatementLine[]
+
+  @@index([accountId, toDate])
+}
+
+enum BankLineStatus {
+  UNMATCHED
+  MATCHED
+  /// not for the books (e.g. a line already covered elsewhere)
+  IGNORED
+}
+
+/// A line of a bank statement: money in (+) or out (−), matched to one journal line on the account.
+model BankStatementLine {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  statementId   String         @db.Uuid
+  accountId     String         @db.Uuid
+  date          DateTime       @db.Date
+  description   String
+  reference     String?
+  /// + deposit, − withdrawal (as the bank sees the account)
+  amount        Decimal        @db.Decimal(14, 2)
+  status        BankLineStatus @default(UNMATCHED)
+  journalLineId String?        @unique @db.Uuid
+  matchedById   String?        @db.Uuid
+  matchedAt     DateTime?      @db.Timestamptz(3)
+  /// found by the automatic matcher (vs matched by hand)
+  autoMatched   Boolean        @default(false)
+
+  statement   BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  journalLine JournalLine?  @relation(fields: [journalLineId], references: [id], onDelete: Restrict)
+
+  @@index([accountId, status])
+  @@index([accountId, date, amount])
 }
